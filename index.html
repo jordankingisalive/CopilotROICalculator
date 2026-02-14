@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M365 Copilot Productivity ROI Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>M365 Copilot Productivity ROI Projections</h1>
+                    <p class="subtitle">Transform your usage data into actionable insights</p>
+                </div>
+                <div class="header-actions">
+                    <button onclick="exportToPDF()" class="action-btn" title="Export to PDF">
+                        <span class="action-icon">📄</span>
+                        <span class="action-text">Export PDF</span>
+                    </button>
+                    <button onclick="emailReport()" class="action-btn" title="Share via Email">
+                        <span class="action-icon">📧</span>
+                        <span class="action-text">Email</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <nav class="nav-buttons">
+            <a href="index.html" class="nav-btn nav-btn-active">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Full Data Analysis</span>
+            </a>
+            <a href="roi-calculator.html" class="nav-btn">
+                <span class="nav-icon">💼</span>
+                <span class="nav-text">ROI Calculator</span>
+            </a>
+            <a href="Start Here.html" class="nav-btn">
+                <span class="nav-icon">🚀</span>
+                <span class="nav-text">Adoption Journey</span>
+            </a>
+        </nav>
+
+        <main>
+            <section class="instructions-section">
+                <h2>Getting Started</h2>
+
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Export Your Heatmap Data</h3>
+                        <p>Open your Copilot-Insight Power BI report (.pbit file) and locate the usage heatmap table. This is generated using the Power BI report at <a href="https://aka.ms/decodingsuperusage" target="_blank" style="color: var(--copilot-blue); font-weight: 600; text-decoration: underline;">https://aka.ms/decodingsuperusage</a>.</p>
+                        <ol>
+                            <li>Ctrl+Left Click ALL options on the left-hand side of the heatmap</li>
+                            <li>Click on the heatmap visualization in Power BI</li>
+                            <li>Select the <strong>More options</strong> (three dots) menu in the top right of the heatmap box</li>
+                            <li>Click <strong>"Export"</strong></li>
+                            <li>Click <strong>"Save"</strong> to save the CSV file (default name: <code>data.csv</code>)</li>
+                            <li>Optional: Rename to <code>heatmap.csv</code> when saving for easier identification</li>
+                        </ol>
+                        <div class="info-box">
+                            <strong>Expected columns:</strong> Team/Division Name, Active Users, Enabled Users, Total Actions, Monthly Actions, Engagement %, etc.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Configure Your Analysis</h3>
+                        <p>Set your organization's parameters for Productivity ROI calculation:</p>
+
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label for="industry">Industry</label>
+                                <select id="industry" onchange="updateProfessionalRate()">
+                                    <option value="78">Pharmaceutical ($78/hr)</option>
+                                    <option value="85">Finance ($85/hr)</option>
+                                    <option value="72">Technology ($72/hr)</option>
+                                    <option value="68">Healthcare ($68/hr)</option>
+                                    <option value="65">Manufacturing ($65/hr)</option>
+                                    <option value="70">Professional Services ($70/hr)</option>
+                                    <option value="custom">Custom Rate</option>
+                                </select>
+                            </div>
+
+                            <div class="config-item">
+                                <label for="licenseCost">License Cost per User/Month (USD)</label>
+                                <input type="number" id="licensesCost" value="32" min="0" step="0.01">
+                            </div>
+
+                            <div class="config-item">
+                                <label for="professionalRate">Professional Hourly Rate (USD)</label>
+                                <input type="number" id="professionalRate" value="78" min="0" step="1">
+                                <small>Average fully-loaded cost per employee hour</small>
+                            </div>
+
+                            <div class="config-item">
+                                <label for="minutesPerAction">Minutes Saved per Action</label>
+                                <input type="range" id="minutesPerAction" value="6" min="1" max="15" step="0.5">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                                    <small style="margin: 0;">1 min</small>
+                                    <output id="minutesValue" style="font-weight: bold; font-size: 1.1rem; color: var(--copilot-blue);">6 min</output>
+                                    <small style="margin: 0;">15 min</small>
+                                </div>
+                                <small>Average time saved per Copilot action</small>
+                            </div>
+
+                            <div class="config-item">
+                                <label for="analysisWeeks">Analysis Period (Weeks)</label>
+                                <input type="number" id="analysisWeeks" value="26" min="1" max="52" step="1">
+                                <small>Number of weeks of data to analyze</small>
+                            </div>
+
+                            <div class="config-item">
+                                <label for="intelligentRecapActions">Intelligent Recap Actions per Month</label>
+                                <input type="number" id="intelligentRecapActions" value="0" min="0" step="100">
+                                <small>Optional - Additional productivity from Intelligent Recap feature</small>
+                            </div>
+                        </div>
+
+                        <div class="info-box" style="margin-top: 1rem;">
+                            <strong>📊 Intelligent Recap Usage Guidance</strong>
+                            <p>
+                                Microsoft does not publish an industry-wide benchmark for Intelligent Recap actions per 1,000 employees. However, observed usage shows active users average ~1.6 Intelligent Recap actions per week. When normalized by adoption rate, this typically equates to ~700–2,000 recap actions per 1,000 employees per month, depending on enablement and meeting load.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Upload Your Data</h3>
+                        <p>Select your exported CSV file below. Your data will be processed entirely in your browser - nothing is sent to any server.</p>
+
+                        <div class="upload-area" id="uploadArea">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p><strong>Drop your CSV file here</strong></p>
+                            <p>or</p>
+                            <button class="btn-primary" id="fileSelectBtn">Choose File</button>
+                            <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                        </div>
+
+                        <div class="info-box privacy-box">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <div>
+                                <strong>Your Privacy is Protected</strong>
+                                <p>• All data processing happens locally in your browser<br>
+                                • No data is uploaded to any server or cloud service<br>
+                                • Data is stored temporarily in browser memory only<br>
+                                • All data is cleared when you close this tab<br>
+                                • No cookies or tracking technologies are used</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="loadingState" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Processing your data...</p>
+            </div>
+
+            <div id="errorState" style="display: none;">
+                <div class="error-box">
+                    <h3>Unable to Process File</h3>
+                    <p id="errorMessage"></p>
+                    <button class="btn-secondary" onclick="location.reload()">Try Again</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>M365 Copilot Productivity ROI Calculator Suite | All data processed locally in your browser | Support: <a href="mailto:jordanking@microsoft.com" style="color: var(--copilot-blue); text-decoration: none;">jordanking@microsoft.com</a></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        function exportToPDF() {
+            const element = document.querySelector('.container');
+            const opt = {
+                margin: 0.5,
+                filename: 'M365_Copilot_ROI_Analysis.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                },
+                jsPDF: {
+                    unit: 'in',
+                    format: 'letter',
+                    orientation: 'portrait'
+                },
+                pagebreak: {
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    avoid: ['.phase-card', '.month-card', '.insight-card', '.scenario-card', 'img', '.timeline-visual', '.month-grid', '.metric-card']
+                }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function emailReport() {
+            const subject = encodeURIComponent('M365 Copilot Productivity ROI Analysis');
+            const body = encodeURIComponent('Please find attached the M365 Copilot Productivity ROI analysis. This report provides insights into productivity gains and return on investment.\n\nTo view the full interactive report, please visit: [Your URL Here]');
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        function updateProfessionalRate() {
+            const industrySelect = document.getElementById('industry');
+            const professionalRateInput = document.getElementById('professionalRate');
+
+            if (industrySelect.value !== 'custom') {
+                professionalRateInput.value = industrySelect.value;
+                professionalRateInput.disabled = true;
+            } else {
+                professionalRateInput.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

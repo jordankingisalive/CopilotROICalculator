@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M365 Copilot Productivity ROI Projections</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .projection-form {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .projection-form h2 {
+            color: var(--copilot-blue);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+        }
+
+        .form-section h3 {
+            color: var(--dark-blue);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--copilot-cyan);
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-field label {
+            font-weight: 600;
+            color: var(--dark-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .input-field input, .input-field select {
+            padding: 0.75rem;
+            font-size: 1rem;
+            border: 2px solid var(--light-gray);
+            border-radius: 6px;
+            transition: border-color 0.3s ease;
+            font-family: inherit;
+            background-color: var(--white);
+            width: 100%;
+        }
+
+        .input-field select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23605E5C' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2.5rem;
+            cursor: pointer;
+        }
+
+        .input-field input:focus, .input-field select:focus {
+            outline: none;
+            border-color: var(--copilot-blue);
+        }
+
+        .input-field small {
+            margin-top: 0.25rem;
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: var(--copilot-blue);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calculate-btn:hover {
+            background: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px var(--shadow);
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .scenario-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .scenario-card {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow);
+            border-top: 4px solid var(--copilot-blue);
+        }
+
+        .scenario-card.highlight {
+            border-top-color: var(--copilot-orange);
+            box-shadow: 0 6px 20px rgba(255, 140, 0, 0.2);
+        }
+
+        .scenario-card h3 {
+            color: var(--copilot-blue);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .scenario-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .scenario-metric:last-child {
+            border-bottom: none;
+        }
+
+        .scenario-metric-label {
+            font-size: 0.95rem;
+            color: var(--gray);
+        }
+
+        .scenario-metric-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--copilot-blue);
+        }
+
+        .roi-highlight {
+            background: linear-gradient(135deg, var(--green) 0%, #0a9e0a 100%);
+            color: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .roi-highlight h3 {
+            color: var(--white);
+            margin-bottom: 1rem;
+        }
+
+        .roi-value {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+
+        .assumptions-box {
+            background: var(--light-gray);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+
+        .assumptions-box h4 {
+            color: var(--copilot-blue);
+            margin-bottom: 1rem;
+        }
+
+        .assumptions-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .assumptions-box li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .assumptions-box li:last-child {
+            border-bottom: none;
+        }
+
+        /* Collapsible Important Box */
+        .important-box-wrapper {
+            margin-bottom: 2rem;
+        }
+
+        .important-box-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 1rem 1.5rem;
+            background: #fff8f0;
+            border-left: 4px solid var(--copilot-orange);
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+
+        .important-box-header:hover {
+            background: #fff3e0;
+        }
+
+        .important-box-title {
+            font-weight: bold;
+            color: var(--dark-blue);
+            font-size: 1.1rem;
+        }
+
+        .important-box-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: var(--copilot-blue);
+            font-size: 0.9rem;
+        }
+
+        .important-box-toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .important-box-toggle-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .important-box-content {
+            padding: 1.5rem;
+            background: #fff8f0;
+            border-left: 4px solid var(--copilot-orange);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            margin-top: -8px;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+
+        .important-box-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding: 0 1.5rem;
+        }
+
+        .important-box-content p {
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* Toggle Switch for Intelligent Recap */
+        .recap-toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f0f9ff;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border: 2px solid var(--copilot-blue);
+        }
+
+        .recap-toggle-label {
+            font-weight: 600;
+            color: var(--dark-blue);
+            font-size: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--copilot-blue);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        .recap-value-box {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            border: 2px solid var(--copilot-blue);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .recap-value-box h4 {
+            color: var(--copilot-blue);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .recap-value-box .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--dark-blue);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>M365 Copilot Productivity ROI Projections</h1>
+                    <p class="subtitle">Project potential productivity value and growth opportunities</p>
+                </div>
+                <div class="header-actions">
+                    <button onclick="exportToPDF()" class="action-btn" title="Export to PDF">
+                        <span class="action-icon">📄</span>
+                        <span class="action-text">Export PDF</span>
+                    </button>
+                    <button onclick="emailReport()" class="action-btn" title="Share via Email">
+                        <span class="action-icon">📧</span>
+                        <span class="action-text">Email</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <nav class="nav-buttons">
+            <a href="index.html" class="nav-btn">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Full Data Analysis</span>
+            </a>
+            <a href="roi-calculator.html" class="nav-btn nav-btn-active">
+                <span class="nav-icon">💼</span>
+                <span class="nav-text">ROI Calculator</span>
+            </a>
+            <a href="Start Here.html" class="nav-btn">
+                <span class="nav-icon">🚀</span>
+                <span class="nav-text">Adoption Journey</span>
+            </a>
+        </nav>
+
+        <main>
+            <div class="important-box-wrapper">
+                <div class="important-box-header" onclick="toggleImportantBox()">
+                    <div class="important-box-title">⏱️ Important: Productivity ROI Realizes Over Time</div>
+                    <div class="important-box-toggle">
+                        <span id="toggle-text">Hide</span>
+                        <span class="important-box-toggle-icon" id="toggle-icon">▼</span>
+                    </div>
+                </div>
+                <div class="important-box-content" id="important-content">
+                    <p>
+                        <strong>Before projecting final ROI numbers</strong>, it's important to understand the adoption journey. Copilot value builds over 6-9 months as users progress from trial to deep integration. Month 1 might show 3-5x ROI, building to 12-20x by month 6.<br><br>
+
+                        <strong>Understanding This Calculator Suite:</strong><br>
+                        • <strong>Full Data Analysis:</strong> Upload and analyze your actual Copilot usage data from Power BI reports<br>
+                        • <strong>ROI Calculator:</strong> Project potential ROI based on estimated user counts and adoption rates<br>
+                        • <strong>Adoption Journey:</strong> View realistic timeline of value realization over 6-9 months<br><br>
+
+                        <strong>🔒 Your Privacy &amp; Data Security:</strong><br>
+                        • All calculations are processed locally in your browser<br>
+                        • No data is transmitted to any server or cloud service<br>
+                        • All data is stored temporarily in browser memory only<br>
+                        • Data is automatically deleted when you close this window or tab<br>
+                        • No logs are kept on your computer<br><br>
+
+                        <strong>📊 Note on ROI Calculations:</strong><br>
+                        • <strong>Copilot Actions:</strong> Saves configured minutes per action<br>
+                        • <strong>Intelligent Recap (Optional):</strong> Each action saves 0.5 hours (30 min median meeting duration)<br>
+                        • Use the toggle in results to include/exclude Intelligent Recap from projections
+                    </p>
+                </div>
+            </div>
+
+            <div class="projection-form">
+                <h2>Enter Your Organization's Projections</h2>
+
+                <div class="form-section">
+                    <h3>Organization Details</h3>
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label for="companyName">Company Name</label>
+                            <input type="text" id="companyName" placeholder="Contoso">
+                        </div>
+
+                        <div class="input-field">
+                            <label for="licensedUsers">Expected Licensed Users</label>
+                            <input type="number" id="licensedUsers" value="1000" min="1" step="1">
+                            <small>Number of Copilot licenses</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Adoption Assumptions</h3>
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label for="activationRate">Expected Activation Rate (%)</label>
+                            <input type="number" id="activationRate" value="85" min="0" max="100" step="1">
+                            <small>Typical range: 70-95%</small>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="actionsPerWeek">Actions per User per Week</label>
+                            <input type="number" id="actionsPerWeek" value="15" min="1" step="1">
+                            <small>Typical range: 10-25 actions</small>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="adoptionProfile">Adoption Profile</label>
+                            <select id="adoptionProfile">
+                                <option value="conservative">Conservative (Lower adoption)</option>
+                                <option value="moderate" selected>Moderate (Typical adoption)</option>
+                                <option value="strong">Strong (High adoption)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Financial Parameters</h3>
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label for="salesLicenseCost">License Cost per User/Month (USD)</label>
+                            <input type="number" id="salesLicenseCost" value="32" min="0" step="0.01">
+                        </div>
+
+                        <div class="input-field">
+                            <label for="salesProfessionalRate">Professional Hourly Rate (USD)</label>
+                            <input type="number" id="salesProfessionalRate" value="78" min="0" step="1">
+                            <small>Fully-loaded cost per employee hour</small>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="industry">Industry</label>
+                            <select id="industry">
+                                <option value="78">Pharmaceutical ($78/hr)</option>
+                                <option value="85">Finance ($85/hr)</option>
+                                <option value="72">Technology ($72/hr)</option>
+                                <option value="68">Healthcare ($68/hr)</option>
+                                <option value="65">Manufacturing ($65/hr)</option>
+                                <option value="70">Professional Services ($70/hr)</option>
+                                <option value="custom">Custom Rate</option>
+                            </select>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="salesIntelligentRecap">Intelligent Recap Actions per Month</label>
+                            <input type="number" id="salesIntelligentRecap" value="0" min="0" step="100">
+                            <small>Optional - Additional productivity from Intelligent Recap feature</small>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="calculate-btn" onclick="calculateProjections()">Calculate Productivity ROI Projections</button>
+            </div>
+
+            <div class="results-section" id="resultsSection">
+                <!-- Results will be inserted here -->
+            </div>
+        </main>
+
+        <footer>
+            <p>M365 Copilot Productivity ROI Calculator Suite | All calculations performed locally | Support: <a href="mailto:jordanking@microsoft.com" style="color: var(--copilot-blue); text-decoration: none;">jordanking@microsoft.com</a></p>
+        </footer>
+    </div>
+
+    <script src="sales-script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        function exportToPDF() {
+            const element = document.querySelector('.container');
+            const opt = {
+                margin: 0.5,
+                filename: 'M365_Copilot_ROI_Projections.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                },
+                jsPDF: {
+                    unit: 'in',
+                    format: 'letter',
+                    orientation: 'portrait'
+                },
+                pagebreak: {
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    avoid: ['.phase-card', '.month-card', '.insight-card', '.scenario-card', 'img', '.timeline-visual', '.month-grid', '.metric-card']
+                }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function emailReport() {
+            const subject = encodeURIComponent('M365 Copilot Productivity ROI Projections');
+            const body = encodeURIComponent('Please find information about M365 Copilot productivity projections. This analysis explores potential productivity gains and growth opportunities.\n\nFor the interactive calculator, please visit: [Your URL Here]');
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        function toggleImportantBox() {
+            const content = document.getElementById('important-content');
+            const icon = document.getElementById('toggle-icon');
+            const text = document.getElementById('toggle-text');
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                icon.classList.remove('collapsed');
+                text.textContent = 'Hide';
+            } else {
+                content.classList.add('collapsed');
+                icon.classList.add('collapsed');
+                text.textContent = 'Show';
+            }
+        }
+    </script>
+</body>
+</html>
