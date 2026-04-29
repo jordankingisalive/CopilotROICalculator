@@ -897,6 +897,37 @@ function switchTimePeriod(period) {
     if (allTeamsNote) {
         allTeamsNote.innerHTML = `Showing: <strong style="color: var(--copilot-cyan);">${periodLabels[period]}</strong> &nbsp;|&nbsp; Averages computed across ${period === 'all' ? 'all weeks in selected period' : periodLabels[period].toLowerCase()}`;
     }
+
+    // --- Update Key Metrics ---
+    const totalActiveUsers = teams.reduce((s, t) => s + t.activeUsers, 0);
+    const totalWeeklyActions = teams.reduce((s, t) => s + t.weeklyActions, 0);
+    const totalPowerUsers = teams.reduce((s, t) => s + t.powerUsers, 0);
+    const totalEnabled = teams.reduce((s, t) => s + (t.enabledUsers || t.activeUsers), 0);
+    const avgActionsPerUser = totalActiveUsers > 0 ? totalWeeklyActions / totalActiveUsers : 0;
+    const weeklyHoursSaved = (totalWeeklyActions * mpa) / 60;
+    const weeklyValue = (totalWeeklyActions * mpa / 60) * rate;
+    const monthlyValue = weeklyValue * 4.33;
+    const monthlyCost = totalEnabled * licenseCost;
+    const roiMultiple = monthlyCost > 0 ? monthlyValue / monthlyCost : 0;
+    const powerUserRate = totalEnabled > 0 ? (totalPowerUsers / totalEnabled) * 100 : 0;
+
+    const fmt = (n) => n.toLocaleString(undefined, {maximumFractionDigits: 0});
+
+    const el = (id) => document.getElementById(id);
+    if (el('km-powerUserRate')) el('km-powerUserRate').textContent = powerUserRate.toFixed(1) + '%';
+    if (el('km-powerUserSub')) el('km-powerUserSub').innerHTML = `${fmt(totalPowerUsers)} power users <span style="color: var(--copilot-cyan); font-size: 0.8rem;">(${periodLabels[period]})</span>`;
+    if (el('km-actionsPerUser')) el('km-actionsPerUser').textContent = avgActionsPerUser.toFixed(1);
+    if (el('km-actionsPerUserSub')) el('km-actionsPerUserSub').textContent = `${fmt(totalWeeklyActions)} total/week`;
+    if (el('km-hoursSaved')) el('km-hoursSaved').textContent = fmt(Math.round(weeklyHoursSaved));
+    if (el('km-hoursSavedSub')) el('km-hoursSavedSub').textContent = `${fmt(totalWeeklyActions)} actions × ${mpa} min ÷ 60`;
+    if (el('km-actionsPerUser2')) el('km-actionsPerUser2').textContent = avgActionsPerUser.toFixed(1);
+    if (el('km-actionsPerUser2Sub')) el('km-actionsPerUser2Sub').textContent = `${fmt(totalWeeklyActions)} total across ${fmt(totalActiveUsers)} users`;
+    if (el('km-monthlyActions')) el('km-monthlyActions').textContent = (avgActionsPerUser * 4.33).toFixed(0);
+    if (el('km-monthlyActionsSub')) el('km-monthlyActionsSub').textContent = `${avgActionsPerUser.toFixed(1)}/wk × 4.33`;
+    if (el('km-weeklyValue')) el('km-weeklyValue').textContent = `$${fmt(Math.round(weeklyValue))}`;
+    if (el('km-weeklyValueSub')) el('km-weeklyValueSub').textContent = `${fmt(totalWeeklyActions)} actions × ${mpa} min × $${rate}/hr`;
+    if (el('km-monthlyValue')) el('km-monthlyValue').textContent = `$${fmt(Math.round(monthlyValue))}`;
+    if (el('km-monthlyValueSub')) el('km-monthlyValueSub').textContent = `$${fmt(Math.round(weeklyValue))}/wk × 4.33 = ${roiMultiple.toFixed(1)}x ROI`;
 }
 
 // Build ROI projection tables (break-even, tiers, 3-year projections)
@@ -1318,55 +1349,63 @@ function renderResults() {
             </div>
             ` : ''}
 
-            ${section('Key Metrics', `<div class="metrics-grid">
+            ${section('Key Metrics', `
+            ${hasTimePeriods ? `<div class="time-toggle-bar" style="display:flex; justify-content:center; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+                <button class="time-toggle-btn active" data-period="all" onclick="switchTimePeriod('all')">Entire Period</button>
+                <button class="time-toggle-btn" data-period="last4" onclick="switchTimePeriod('last4')">Last 4 Weeks</button>
+                <button class="time-toggle-btn" data-period="last13" onclick="switchTimePeriod('last13')">Last 3 Months</button>
+                <button class="time-toggle-btn" data-period="3moAgo" onclick="switchTimePeriod('3moAgo')">3+ Months Ago</button>
+                <button class="time-toggle-btn" data-period="first4" onclick="switchTimePeriod('first4')">First Month</button>
+            </div>` : ''}
+            <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Enabled Users <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">The total number of people in your organization who have been assigned a Microsoft 365 Copilot license.</span></span></span></div>
-                    <div class="metric-value">${metrics.totalEnabledUsers.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-value" id="km-enabledUsers">${metrics.totalEnabledUsers.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
                     <div class="metric-sublabel">Licensed for Copilot</div>
                 </div>
 
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Power User Rate <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">The percentage of licensed users classified as Power Users — averaging 20+ weekly Copilot actions with consistent usage in at least 9 of the past 12 weeks. These are your AI champions.</span></span></span></div>
-                    <div class="metric-value">${metrics.powerUserRate.toFixed(1)}%</div>
-                    <div class="metric-sublabel">${metrics.powerUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} power users <span style="color: var(--copilot-cyan); font-size: 0.8rem;">(last 4 weeks)</span></div>
+                    <div class="metric-value" id="km-powerUserRate">${metrics.powerUserRate.toFixed(1)}%</div>
+                    <div class="metric-sublabel" id="km-powerUserSub">${metrics.powerUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} power users <span style="color: var(--copilot-cyan); font-size: 0.8rem;">(last 4 weeks)</span></div>
                 </div>
 
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Weekly Actions per User <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">The average number of Copilot actions each active user performs per week — things like accepting a suggestion, using Copilot chat, or generating a summary.</span></span></span></div>
-                    <div class="metric-value">${metrics.avgActionsPerUser.toFixed(1)}</div>
-                    <div class="metric-sublabel">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} total/week</div>
+                    <div class="metric-value" id="km-actionsPerUser">${metrics.avgActionsPerUser.toFixed(1)}</div>
+                    <div class="metric-sublabel" id="km-actionsPerUserSub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} total/week</div>
                 </div>
 
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Weekly Hours Saved <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">Estimated time saved per week across all users. Calculated by multiplying total weekly Copilot actions by the configured minutes saved per action, then converting to hours.</span></span></span></div>
-                    <div class="metric-value">${metrics.weeklyHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                    <div class="metric-sublabel">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} actions × ${config.minutesPerAction} min ÷ 60</div>
+                    <div class="metric-value" id="km-hoursSaved">${metrics.weeklyHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel" id="km-hoursSavedSub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} actions × ${config.minutesPerAction} min ÷ 60</div>
                 </div>
             </div>
 
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Weekly Actions per User ${tip('The average number of Copilot actions each active user performs per week — things like accepting a suggestion, using Copilot chat, or generating a summary.')}</span></div>
-                    <div class="metric-value">${metrics.avgActionsPerUser.toFixed(1)}</div>
-                    <div class="metric-sublabel">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} total across ${metrics.totalActiveUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} users</div>
+                    <div class="metric-value" id="km-actionsPerUser2">${metrics.avgActionsPerUser.toFixed(1)}</div>
+                    <div class="metric-sublabel" id="km-actionsPerUser2Sub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} total across ${metrics.totalActiveUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} users</div>
                 </div>
 
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Monthly Actions/User ${tip('Average monthly Copilot actions per active user. This is the key engagement depth metric — higher means users are integrating Copilot into more workflows.')}</span></div>
-                    <div class="metric-value">${(metrics.avgActionsPerUser * 4.33).toFixed(0)}</div>
-                    <div class="metric-sublabel">${metrics.avgActionsPerUser.toFixed(1)}/wk × 4.33</div>
+                    <div class="metric-value" id="km-monthlyActions">${(metrics.avgActionsPerUser * 4.33).toFixed(0)}</div>
+                    <div class="metric-sublabel" id="km-monthlyActionsSub">${metrics.avgActionsPerUser.toFixed(1)}/wk × 4.33</div>
                 </div>
 
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Weekly Productivity Value ${tip('The estimated dollar value of time saved each week. Calculated as: total weekly actions × minutes per action ÷ 60 × hourly rate.')}</span></div>
-                    <div class="metric-value">$${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                    <div class="metric-sublabel">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} actions × ${config.minutesPerAction} min × $${config.professionalRate}/hr</div>
+                    <div class="metric-value" id="km-weeklyValue">$${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel" id="km-weeklyValueSub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} actions × ${config.minutesPerAction} min × $${config.professionalRate}/hr</div>
                 </div>
 
                 <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Monthly Productivity Value ${tip('Weekly productivity value × 4.33 (average weeks per month). This is the headline number — the total dollar value Copilot generates each month for your organization.')}</span></div>
-                    <div class="metric-value">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                    <div class="metric-sublabel">$${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}/wk × 4.33 = ${metrics.roiMultiple.toFixed(1)}x ROI</div>
+                    <div class="metric-value" id="km-monthlyValue">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel" id="km-monthlyValueSub">$${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}/wk × 4.33 = ${metrics.roiMultiple.toFixed(1)}x ROI</div>
                 </div>
             </div>
             `)}<!-- end Key Metrics -->
