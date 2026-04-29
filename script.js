@@ -1508,6 +1508,17 @@ function renderResults() {
                                 <td data-value="${team.monthlyValue}"><strong>$${team.monthlyValue.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
                             </tr>
                         `}).join('')}
+                        <tr style="border-top: 2px solid var(--copilot-blue); font-weight: 700; background: rgba(74,158,247,0.05);">
+                            <td>Total (${sortedTeams.length} ${uploadedData.groupLabel || 'teams'})</td>
+                            <td>${sortedTeams.reduce((s,t) => s + t.activeUsers, 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                            <td>${sortedTeams.reduce((s,t) => s + t.powerUsers, 0)}</td>
+                            <td>${sortedTeams.reduce((s,t) => s + t.weeklyActions, 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                            <td>${metrics.avgActionsPerUser.toFixed(1)}</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td>${sortedTeams.reduce((s,t) => s + t.weeklyHours, 0).toFixed(0)}</td>
+                            <td><strong>$${sortedTeams.reduce((s,t) => s + t.monthlyValue, 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</strong></td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
