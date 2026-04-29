@@ -418,7 +418,7 @@ function flattenData(rows) {
                 const activeUsers = Math.round((enabledUsers * activePercent) / 100);
                 const weeklyActions = actionsPerUser * activeUsers;
                 const monthlyActions = weeklyActions * 4.33;
-                const powerUsersCount = Math.round((activeUsers * powerUsersPercent) / 100);
+                const powerUsersCount = Math.round((enabledUsers * powerUsersPercent) / 100);
 
                 // Build weekly history for this org (for peak week calculation AND time-period toggle)
                 orgWeeklyData[orgName] = sortedDates
@@ -586,7 +586,7 @@ function flattenData(rows) {
             let powerUsersCount = 0;
             if (mapping.powerUsers && row[mapping.powerUsers]) {
                 const powerUsersPercent = parseNumber(row[mapping.powerUsers]);
-                powerUsersCount = Math.round((activeUsers * powerUsersPercent) / 100);
+                powerUsersCount = Math.round((enabledUsers * powerUsersPercent) / 100);
             }
 
             return {
@@ -746,7 +746,7 @@ function computeTeamsForPeriod(period) {
         const activeUsers = Math.round((enabledUsers * activePercent) / 100);
         const weeklyActions = actionsPerUser * activeUsers;
         const monthlyActions = weeklyActions * 4.33;
-        const powerUsersCount = Math.round((activeUsers * powerPercent) / 100);
+        const powerUsersCount = Math.round((enabledUsers * powerPercent) / 100);
         const monthlyValue = (monthlyActions * mpa / 60) * rate;
         const weeklyHours = (weeklyActions * mpa / 60);
 
@@ -920,8 +920,8 @@ function switchTimePeriod(period) {
     if (el('km-actionsPerUserSub')) el('km-actionsPerUserSub').textContent = `${fmt(totalWeeklyActions)} total/week`;
     if (el('km-hoursSaved')) el('km-hoursSaved').textContent = fmt(Math.round(weeklyHoursSaved));
     if (el('km-hoursSavedSub')) el('km-hoursSavedSub').textContent = `${fmt(totalWeeklyActions)} actions × ${mpa} min ÷ 60`;
-    if (el('km-actionsPerUser2')) el('km-actionsPerUser2').textContent = avgActionsPerUser.toFixed(1);
-    if (el('km-actionsPerUser2Sub')) el('km-actionsPerUser2Sub').textContent = `${fmt(totalWeeklyActions)} total across ${fmt(totalActiveUsers)} users`;
+    if (el('km-monthlyHours')) el('km-monthlyHours').textContent = fmt(Math.round(weeklyHoursSaved * 4.33));
+    if (el('km-monthlyHoursSub')) el('km-monthlyHoursSub').textContent = `${fmt(Math.round(weeklyHoursSaved))} hrs/wk × 4.33`;
     if (el('km-monthlyActions')) el('km-monthlyActions').textContent = (avgActionsPerUser * 4.33).toFixed(0);
     if (el('km-monthlyActionsSub')) el('km-monthlyActionsSub').textContent = `${avgActionsPerUser.toFixed(1)}/wk × 4.33`;
     if (el('km-weeklyValue')) el('km-weeklyValue').textContent = `$${fmt(Math.round(weeklyValue))}`;
@@ -1385,9 +1385,9 @@ function renderResults() {
 
             <div class="metrics-grid">
                 <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Weekly Actions per User ${tip('The average number of Copilot actions each active user performs per week — things like accepting a suggestion, using Copilot chat, or generating a summary.')}</span></div>
-                    <div class="metric-value" id="km-actionsPerUser2">${metrics.avgActionsPerUser.toFixed(1)}</div>
-                    <div class="metric-sublabel" id="km-actionsPerUser2Sub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} total across ${metrics.totalActiveUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} users</div>
+                    <div class="metric-label"><span class="metric-label-row">Monthly Hours Saved ${tip('Estimated hours saved per month across all users. Weekly hours saved × 4.33 weeks per month.')}</span></div>
+                    <div class="metric-value" id="km-monthlyHours">${(metrics.weeklyHoursSaved * 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel" id="km-monthlyHoursSub">${metrics.weeklyHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 0})} hrs/wk × 4.33</div>
                 </div>
 
                 <div class="metric-card">
