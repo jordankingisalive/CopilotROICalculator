@@ -1796,7 +1796,8 @@ function renderResults() {
         </div>
     `;
 
-    document.getElementById('loadingState').style.display = 'none';
+    const loadingEl = document.getElementById('loadingState');
+    if (loadingEl) loadingEl.style.display = 'none';
     document.querySelector('.container').innerHTML = html;
     resultsDisplayed = true;
 
@@ -2110,17 +2111,24 @@ function getColumnIndex(column) {
 
 // Show loading state
 function showLoading() {
-    document.querySelector('.instructions-section').style.display = 'none';
-    document.getElementById('loadingState').style.display = 'block';
-    document.getElementById('errorState').style.display = 'none';
+    const inst = document.querySelector('.instructions-section');
+    if (inst) inst.style.display = 'none';
+    const ls = document.getElementById('loadingState');
+    if (ls) ls.style.display = 'block';
+    const es = document.getElementById('errorState');
+    if (es) es.style.display = 'none';
 }
 
 // Show error state
 function showError(message) {
-    document.querySelector('.instructions-section').style.display = 'none';
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('errorState').style.display = 'block';
-    document.getElementById('errorMessage').textContent = message;
+    const inst = document.querySelector('.instructions-section');
+    if (inst) inst.style.display = 'none';
+    const ls = document.getElementById('loadingState');
+    if (ls) ls.style.display = 'none';
+    const es = document.getElementById('errorState');
+    if (es) es.style.display = 'block';
+    const em = document.getElementById('errorMessage');
+    if (em) em.textContent = message;
 }
 
 // Toggle Intelligent Recap display for Data Analysis
