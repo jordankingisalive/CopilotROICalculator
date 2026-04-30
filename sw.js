@@ -1,4 +1,4 @@
-const CACHE_NAME = 'copilot-roi-v6';
+const CACHE_NAME = 'copilot-roi-v8';
 const ASSETS = [
     './',
     './index.html',
@@ -9,7 +9,9 @@ const ASSETS = [
     './sales-script.js',
     './sample-data.csv',
     './lib/jspdf.umd.min.js',
-    './lib/html2canvas.min.js'
+    './lib/html2canvas.min.js',
+    './lib/docx.umd.js',
+    './lib/pptxgen.bundle.js'
 ];
 
 // Install: pre-cache every asset

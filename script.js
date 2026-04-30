@@ -14,7 +14,8 @@ let config = {
     professionalRate: 78,
     minutesPerAction: 6,
     analysisWeeks: 26,
-    intelligentRecapActions: 0
+    intelligentRecapActions: 0,
+    totalPurchasedLicenses: 0
 };
 
 // Position tooltips dynamically (fixed positioning to escape overflow containers)
@@ -124,6 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
         config.intelligentRecapActions = parseInt(e.target.value) || 0;
         onConfigChange();
     });
+
+    document.getElementById('totalPurchasedLicenses').addEventListener('change', (e) => {
+        config.totalPurchasedLicenses = parseInt(e.target.value) || 0;
+        onConfigChange();
+    });
 });
 
 // Handle file upload
@@ -217,6 +223,7 @@ function syncConfigFromInputs() {
     config.professionalRate = parseFloat(document.getElementById('professionalRate').value) || 0;
     config.minutesPerAction = parseFloat(document.getElementById('minutesPerAction').value) || 6;
     config.intelligentRecapActions = parseInt(document.getElementById('intelligentRecapActions').value) || 0;
+    config.totalPurchasedLicenses = parseInt(document.getElementById('totalPurchasedLicenses').value) || 0;
 }
 
 // Run calculation (triggered by Calculate button)
@@ -643,6 +650,11 @@ function calculateMetrics(data) {
     const totalWeeklyActions = rows.reduce((sum, row) => sum + row.weeklyActions, 0);
     const totalMonthlyActions = rows.reduce((sum, row) => sum + row.monthlyActions, 0);
 
+    // Purchased licenses — use config value if set, otherwise fall back to enabled
+    const totalPurchasedLicenses = config.totalPurchasedLicenses > 0 ? config.totalPurchasedLicenses : totalEnabledUsers;
+    const unassignedLicenses = Math.max(0, totalPurchasedLicenses - totalEnabledUsers);
+    const assignmentRate = totalPurchasedLicenses > 0 ? (totalEnabledUsers / totalPurchasedLicenses) * 100 : 100;
+
     // Activation rate
     const activationRate = totalEnabledUsers > 0 ? (totalActiveUsers / totalEnabledUsers) * 100 : 0;
 
@@ -653,16 +665,18 @@ function calculateMetrics(data) {
     const powerUsers = rows.reduce((sum, row) => sum + row.powerUsers, 0);
     const powerUserRate = totalEnabledUsers > 0 ? (powerUsers / totalEnabledUsers) * 100 : 0;
 
-    // Monthly costs
+    // Monthly costs — based on total purchased licenses (true investment)
+    const monthlyCostPurchased = totalPurchasedLicenses * config.licenseCost;
     const monthlyCost = totalEnabledUsers * config.licenseCost;
-    const annualCost = monthlyCost * 12;
+    const annualCost = monthlyCostPurchased * 12;
+    const wastedLicenseCost = unassignedLicenses * config.licenseCost;
 
     // ROI Calculations using configured minutes per action
     const minsPerAction = config.minutesPerAction;
     const hoursPerMonth = (totalMonthlyActions * minsPerAction) / 60;
     const valuePerMonth = hoursPerMonth * config.professionalRate;
     const annualValue = valuePerMonth * 12;
-    const roiMultiple = monthlyCost > 0 ? (valuePerMonth / monthlyCost) : 0;
+    const roiMultiple = monthlyCostPurchased > 0 ? (valuePerMonth / monthlyCostPurchased) : 0;
 
     // Weekly hours saved
     const weeklyHoursSaved = (totalWeeklyActions * minsPerAction) / 60;
@@ -670,6 +684,9 @@ function calculateMetrics(data) {
     return {
         totalEnabledUsers,
         totalActiveUsers,
+        totalPurchasedLicenses,
+        unassignedLicenses,
+        assignmentRate,
         activationRate,
         avgActionsPerUser,
         powerUsers,
@@ -678,6 +695,8 @@ function calculateMetrics(data) {
         totalMonthlyActions,
         weeklyHoursSaved,
         monthlyCost,
+        monthlyCostPurchased,
+        wastedLicenseCost,
         annualCost,
         minsPerAction,
         hoursPerMonth,
@@ -786,6 +805,53 @@ const periodLabels = {
     all: 'Entire Period',
     first4: 'First Month'
 };
+
+// Compute "prior 4 weeks" teams data (weeks 5-8 from end)
+function computePrior4Weeks() {
+    if (!uploadedData || !uploadedData.weeklyData || !uploadedData.sortedDates) return null;
+    const allDates = uploadedData.sortedDates;
+    if (allDates.length < 5) return null;
+    const dateSlice = allDates.slice(-8, -4);
+    if (dateSlice.length === 0) return null;
+
+    const dateSet = new Set(dateSlice.map(d => typeof d === 'string' ? d : d.toISOString().slice(0, 10)));
+    const rate = config.professionalRate;
+    const mpa = config.minutesPerAction;
+
+    const recomputed = uploadedData.rows.map(row => {
+        const weeklyData = uploadedData.weeklyData[row.team];
+        if (!weeklyData || weeklyData.length === 0) return null;
+        const filtered = weeklyData.filter(w => {
+            const key = w.date instanceof Date ? w.date.toISOString().slice(0, 10) : (typeof w.date === 'string' ? w.date.slice(0, 10) : '');
+            return dateSet.has(key);
+        });
+        if (filtered.length === 0) return null;
+        const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+        const enabledUsers = filtered[filtered.length - 1].enabled || row.enabledUsers;
+        const activePercent = avg(filtered.map(w => w.activePercent).filter(v => v > 0));
+        const actionsPerUser = avg(filtered.map(w => w.actionsPerUser).filter(v => v > 0));
+        const powerPercent = avg(filtered.map(w => w.powerPercent).filter(v => v > 0));
+        const activeUsers = Math.round((enabledUsers * activePercent) / 100);
+        const weeklyActions = actionsPerUser * activeUsers;
+        const monthlyActions = weeklyActions * 4.33;
+        const powerUsersCount = Math.round((enabledUsers * powerPercent) / 100);
+        const monthlyValue = (monthlyActions * mpa / 60) * rate;
+        const weeklyHours = (weeklyActions * mpa / 60);
+        return { ...row, enabledUsers, activeUsers, weeklyActions, monthlyActions, actionsPerUser, powerUsers: powerUsersCount, monthlyValue, weeklyHours };
+    }).filter(r => r !== null && (r.enabledUsers > 0 || r.activeUsers > 0));
+
+    return recomputed;
+}
+
+// Generate a trend badge showing % change
+function trendBadge(current, previous) {
+    if (previous === 0 || previous == null || current == null) return '';
+    const pctChange = ((current - previous) / Math.abs(previous)) * 100;
+    if (Math.abs(pctChange) < 0.5) return '<span style="display:inline-block;margin-left:6px;font-size:0.7rem;color:var(--text-secondary);">→ 0%</span>';
+    const arrow = pctChange > 0 ? '↑' : '↓';
+    const color = pctChange > 0 ? 'var(--green)' : 'var(--red)';
+    return `<span style="display:inline-block;margin-left:6px;font-size:0.7rem;font-weight:700;color:${color};">${arrow} ${Math.abs(pctChange).toFixed(1)}%</span>`;
+}
 
 // Re-render the tier table and leaderboard for a selected time period
 function switchTimePeriod(period) {
@@ -910,24 +976,55 @@ function switchTimePeriod(period) {
     const monthlyCost = totalEnabled * licenseCost;
     const roiMultiple = monthlyCost > 0 ? monthlyValue / monthlyCost : 0;
     const powerUserRate = totalEnabled > 0 ? (totalPowerUsers / totalEnabled) * 100 : 0;
+    const adoptionRate = totalEnabled > 0 ? (totalActiveUsers / totalEnabled) * 100 : 0;
+    const annualValuePerLicense = totalEnabled > 0 ? (monthlyValue * 12) / totalEnabled : 0;
+
+    // Compute comparison badges for "Last 4 Weeks" period
+    let badges = { roi: '', monthlyValue: '', adoption: '', actionsPerUser: '', powerUserRate: '', hoursSaved: '', annualValuePerLicense: '' };
+    if (period === 'last4') {
+        const priorTeams = computePrior4Weeks();
+        if (priorTeams && priorTeams.length > 0) {
+            const pActiveUsers = priorTeams.reduce((s, t) => s + t.activeUsers, 0);
+            const pWeeklyActions = priorTeams.reduce((s, t) => s + t.weeklyActions, 0);
+            const pPowerUsers = priorTeams.reduce((s, t) => s + t.powerUsers, 0);
+            const pEnabled = priorTeams.reduce((s, t) => s + (t.enabledUsers || t.activeUsers), 0);
+            const pAvgActions = pActiveUsers > 0 ? pWeeklyActions / pActiveUsers : 0;
+            const pWeeklyHours = (pWeeklyActions * mpa) / 60;
+            const pWeeklyValue = (pWeeklyActions * mpa / 60) * rate;
+            const pMonthlyValue = pWeeklyValue * 4.33;
+            const pMonthlyCost = pEnabled * licenseCost;
+            const pRoi = pMonthlyCost > 0 ? pMonthlyValue / pMonthlyCost : 0;
+            const pPowerRate = pEnabled > 0 ? (pPowerUsers / pEnabled) * 100 : 0;
+            const pAdoption = pEnabled > 0 ? (pActiveUsers / pEnabled) * 100 : 0;
+            const pAnnualValuePerLicense = pEnabled > 0 ? (pMonthlyValue * 12) / pEnabled : 0;
+
+            badges.roi = trendBadge(roiMultiple, pRoi);
+            badges.monthlyValue = trendBadge(monthlyValue, pMonthlyValue);
+            badges.adoption = trendBadge(adoptionRate, pAdoption);
+            badges.actionsPerUser = trendBadge(avgActionsPerUser, pAvgActions);
+            badges.powerUserRate = trendBadge(powerUserRate, pPowerRate);
+            badges.hoursSaved = trendBadge(weeklyHoursSaved, pWeeklyHours);
+            badges.annualValuePerLicense = trendBadge(annualValuePerLicense, pAnnualValuePerLicense);
+        }
+    }
 
     const fmt = (n) => n.toLocaleString(undefined, {maximumFractionDigits: 0});
-
     const el = (id) => document.getElementById(id);
-    if (el('km-powerUserRate')) el('km-powerUserRate').textContent = powerUserRate.toFixed(1) + '%';
+
+    if (el('km-roi')) el('km-roi').innerHTML = roiMultiple.toFixed(1) + 'x' + badges.roi;
+    if (el('km-roiSub')) el('km-roiSub').textContent = `$${fmt(Math.round(monthlyValue))}/mo value ÷ $${fmt(Math.round(monthlyCost))}/mo cost`;
+    if (el('km-monthlyValue')) el('km-monthlyValue').innerHTML = `$${fmt(Math.round(monthlyValue))}` + badges.monthlyValue;
+    if (el('km-monthlyValueSub')) el('km-monthlyValueSub').textContent = `$${fmt(Math.round(monthlyValue * 12))}/year • $${fmt(Math.round(weeklyValue))}/week`;
+    if (el('km-adoption')) el('km-adoption').innerHTML = adoptionRate.toFixed(1) + '%' + badges.adoption;
+    if (el('km-adoptionSub')) el('km-adoptionSub').textContent = `${fmt(totalActiveUsers)} of ${fmt(totalEnabled)} licensed users active`;
+    if (el('km-actionsPerUser')) el('km-actionsPerUser').innerHTML = avgActionsPerUser.toFixed(1) + badges.actionsPerUser;
+    if (el('km-actionsPerUserSub')) el('km-actionsPerUserSub').textContent = `${(avgActionsPerUser * 4.33).toFixed(0)}/month • ${fmt(totalWeeklyActions)} total/week`;
+    if (el('km-powerUserRate')) el('km-powerUserRate').innerHTML = powerUserRate.toFixed(1) + '%' + badges.powerUserRate;
     if (el('km-powerUserSub')) el('km-powerUserSub').innerHTML = `${fmt(totalPowerUsers)} power users <span style="color: var(--copilot-cyan); font-size: 0.8rem;">(${periodLabels[period]})</span>`;
-    if (el('km-actionsPerUser')) el('km-actionsPerUser').textContent = avgActionsPerUser.toFixed(1);
-    if (el('km-actionsPerUserSub')) el('km-actionsPerUserSub').textContent = `${fmt(totalWeeklyActions)} total/week`;
-    if (el('km-hoursSaved')) el('km-hoursSaved').textContent = fmt(Math.round(weeklyHoursSaved));
+    if (el('km-hoursSaved')) el('km-hoursSaved').innerHTML = fmt(Math.round(weeklyHoursSaved)) + badges.hoursSaved;
     if (el('km-hoursSavedSub')) el('km-hoursSavedSub').textContent = `${fmt(totalWeeklyActions)} actions × ${mpa} min ÷ 60`;
-    if (el('km-monthlyHours')) el('km-monthlyHours').textContent = fmt(Math.round(weeklyHoursSaved * 4.33));
-    if (el('km-monthlyHoursSub')) el('km-monthlyHoursSub').textContent = `${fmt(Math.round(weeklyHoursSaved))} hrs/wk × 4.33`;
-    if (el('km-monthlyActions')) el('km-monthlyActions').textContent = (avgActionsPerUser * 4.33).toFixed(0);
-    if (el('km-monthlyActionsSub')) el('km-monthlyActionsSub').textContent = `${avgActionsPerUser.toFixed(1)}/wk × 4.33`;
-    if (el('km-weeklyValue')) el('km-weeklyValue').textContent = `$${fmt(Math.round(weeklyValue))}`;
-    if (el('km-weeklyValueSub')) el('km-weeklyValueSub').textContent = `${fmt(totalWeeklyActions)} actions × ${mpa} min × $${rate}/hr`;
-    if (el('km-monthlyValue')) el('km-monthlyValue').textContent = `$${fmt(Math.round(monthlyValue))}`;
-    if (el('km-monthlyValueSub')) el('km-monthlyValueSub').textContent = `$${fmt(Math.round(weeklyValue))}/wk × 4.33 = ${roiMultiple.toFixed(1)}x ROI`;
+    if (el('km-costPerHour')) el('km-costPerHour').innerHTML = `$${fmt(Math.round(annualValuePerLicense))}` + badges.annualValuePerLicense;
+    if (el('km-costPerHourSub')) el('km-costPerHourSub').textContent = `$${fmt(Math.round(monthlyValue))}/mo × 12 ÷ ${fmt(totalEnabled)} licenses`;
 }
 
 // Build ROI projection tables (break-even, tiers, 3-year projections)
@@ -1218,7 +1315,7 @@ function buildProjectionTables(metrics, sortedTeams) {
     // Initialize after render
     setTimeout(() => { if (document.getElementById('opp-slider')) updateOppCost(); }, 50);
 
-    return breakEvenHtml + tierHtml + opportunityHtml + projHtml;
+    return { tierHtml, breakEvenHtml, opportunityHtml, projHtml };
 }
 
 // Opportunity cost slider update
@@ -1321,14 +1418,72 @@ function renderResults() {
         };
     }).sort((a, b) => b.monthlyValue - a.monthlyValue);
 
+    // Compute trend: last 4 weeks vs prior 4 weeks
+    let trendBadge = '';
+    let trendSummary = '';
+    if (hasTimePeriods && uploadedData.sortedDates.length >= 8) {
+        const recentTeams = computeTeamsForPeriod('last4');
+        const dates = uploadedData.sortedDates;
+        const prior4Dates = dates.slice(-8, -4);
+        const prior4Set = new Set(prior4Dates.map(d => typeof d === 'string' ? d : d.toISOString().slice(0, 10)));
+
+        if (recentTeams && prior4Dates.length > 0) {
+            // Compute prior period total actions
+            let priorTotalActions = 0;
+            let priorActiveUsers = 0;
+            for (const row of rows) {
+                const wd = uploadedData.weeklyData[row.team];
+                if (!wd) continue;
+                const filtered = wd.filter(w => {
+                    const key = w.date instanceof Date ? w.date.toISOString().slice(0, 10) : (typeof w.date === 'string' ? w.date.slice(0, 10) : '');
+                    return prior4Set.has(key);
+                });
+                if (filtered.length > 0) {
+                    const avgApu = filtered.reduce((s, w) => s + w.actionsPerUser, 0) / filtered.length;
+                    const avgActive = filtered.reduce((s, w) => s + (w.activePercent || 0), 0) / filtered.length;
+                    const en = filtered[filtered.length - 1].enabled || row.enabledUsers;
+                    const au = Math.round((en * avgActive) / 100);
+                    priorTotalActions += avgApu * au;
+                    priorActiveUsers += au;
+                }
+            }
+
+            const recentTotalActions = recentTeams.reduce((s, t) => s + t.weeklyActions, 0);
+            const recentActiveUsers = recentTeams.reduce((s, t) => s + t.activeUsers, 0);
+            const recentAvgApu = recentActiveUsers > 0 ? recentTotalActions / recentActiveUsers : 0;
+            const priorAvgApu = priorActiveUsers > 0 ? priorTotalActions / priorActiveUsers : 0;
+
+            if (priorAvgApu > 0) {
+                const pctChange = ((recentAvgApu - priorAvgApu) / priorAvgApu) * 100;
+                const direction = pctChange >= 0 ? '↑' : '↓';
+                const color = pctChange >= 0 ? 'var(--green)' : 'var(--red, #ef4444)';
+                trendBadge = `<span style="font-size:0.75rem; color:${color}; font-weight:600; margin-left:0.4rem;">${direction}${Math.abs(pctChange).toFixed(0)}% vs prior 4wk</span>`;
+                trendSummary = pctChange >= 0 ? `, trending <strong style="color: var(--green);">up ${Math.abs(pctChange).toFixed(0)}%</strong> vs prior month` : `, trending <strong style="color: var(--red, #ef4444);">down ${Math.abs(pctChange).toFixed(0)}%</strong> vs prior month`;
+            }
+        }
+    }
+
+    // Pre-compute projection sections so we can place them in different locations
+    const projections = buildProjectionTables(metrics, sortedTeams);
+
     const html = `
         <div class="results-container">
             <header>
                 <h1>M365 Copilot Productivity ROI Analysis Results</h1>
                 <p class="subtitle">Based on ${rows.length} ${uploadedData.groupLabel || 'teams'} • ${config.analysisWeeks} weeks of data${uploadedData.dateRange ? ` (${uploadedData.dateRange})` : ''}</p>
                 <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none; font-size: 0.95rem;">📊 View more reports on the Analytics Hub →</a></p>
-                <p style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">⛶ This report is best viewed in full screen. Tooltips may not appear unless the browser window is maximized.</p>
+                <p class="print-hide" style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">⛶ This report is best viewed in full screen. Tooltips may not appear unless the browser window is maximized.</p>
             </header>
+
+            <!-- Executive Summary -->
+            <div style="background: linear-gradient(135deg, rgba(74,158,247,0.08), rgba(0,212,255,0.08)); border: 1px solid rgba(74,158,247,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1rem 0 1.5rem; text-align: center;">
+                <p style="font-size: 1.05rem; color: var(--text-primary); margin: 0; line-height: 1.6;">
+                    Your <strong style="color: var(--copilot-cyan);">${metrics.totalEnabledUsers.toLocaleString()}</strong> Copilot licenses generate
+                    <strong style="color: var(--green);">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/month</strong> in productivity value —
+                    a <strong style="color: var(--green);">${metrics.roiMultiple.toFixed(1)}x return</strong> on investment at
+                    <strong style="color: var(--copilot-cyan);">${metrics.activationRate.toFixed(0)}% adoption</strong>${trendSummary}.
+                </p>
+            </div>
 
             ${showRecap ? `
             <!-- Intelligent Recap Toggle -->
@@ -1357,103 +1512,118 @@ function renderResults() {
                 <button class="time-toggle-btn" data-period="3moAgo" onclick="switchTimePeriod('3moAgo')">3+ Months Ago</button>
                 <button class="time-toggle-btn" data-period="first4" onclick="switchTimePeriod('first4')">First Month</button>
             </div>` : ''}
+            <!-- Hero Metrics Row -->
+            <div class="metrics-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 1.5rem;">
+                <div class="metric-card" style="border: 2px solid var(--green); background: linear-gradient(135deg, rgba(34,197,94,0.05), rgba(34,197,94,0.02));">
+                    <div class="metric-label"><span class="metric-label-row">Monthly ROI Multiple ${tip('Monthly productivity value ÷ monthly license cost. A 3x ROI means every $1 spent on licenses generates $3 in productivity value.')}</span></div>
+                    <div class="metric-value" id="km-roi" style="font-size: 3rem; color: var(--green);">${metrics.roiMultiple.toFixed(1)}x</div>
+                    <div class="metric-sublabel" id="km-roiSub">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo value ÷ $${metrics.monthlyCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo cost</div>
+                </div>
+                <div class="metric-card" style="border: 2px solid var(--copilot-cyan); background: linear-gradient(135deg, rgba(0,212,255,0.05), rgba(0,212,255,0.02));">
+                    <div class="metric-label"><span class="metric-label-row">Monthly Productivity Value ${tip('The total dollar value Copilot generates each month. Calculated as: total monthly actions × minutes per action ÷ 60 × hourly rate.')}</span></div>
+                    <div class="metric-value" id="km-monthlyValue" style="font-size: 3rem; color: var(--copilot-cyan);">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel" id="km-monthlyValueSub">$${(metrics.valuePerMonth * 12).toLocaleString(undefined, {maximumFractionDigits: 0})}/year • $${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}/week</div>
+                </div>
+            </div>
+
+            <!-- Supporting Metrics Row -->
             <div class="metrics-grid">
                 <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Enabled Users <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">The total number of people in your organization who have been assigned a Microsoft 365 Copilot license.</span></span></span></div>
+                    <div class="metric-label"><span class="metric-label-row">Adoption Rate ${tip('The percentage of licensed users who are actively using Copilot. Higher adoption means fewer unused licenses and more organizational value.')}</span></div>
+                    <div class="metric-value" id="km-adoption">${metrics.activationRate.toFixed(1)}%</div>
+                    <div class="metric-sublabel" id="km-adoptionSub">${metrics.totalActiveUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} of ${metrics.totalEnabledUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} licensed users active</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Weekly Actions per User ${tip('The average number of Copilot actions each active user performs per week — things like accepting a suggestion, using Copilot chat, or generating a summary.')}${trendBadge}</span></div>
+                    <div class="metric-value" id="km-actionsPerUser">${metrics.avgActionsPerUser.toFixed(1)}</div>
+                    <div class="metric-sublabel" id="km-actionsPerUserSub">${(metrics.avgActionsPerUser * 4.33).toFixed(0)}/month • ${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} total/week</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Power User Rate ${tip('The percentage of licensed users classified as Power Users — averaging 20+ weekly Copilot actions with consistent usage in at least 9 of the past 12 weeks. These are your AI champions.')}</span></div>
+                    <div class="metric-value" id="km-powerUserRate">${metrics.powerUserRate.toFixed(1)}%</div>
+                    <div class="metric-sublabel" id="km-powerUserSub">${metrics.powerUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} power users <span style="color: var(--copilot-cyan); font-size: 0.8rem;">(last 4 weeks)</span></div>
+                </div>
+            </div>
+
+            <!-- Detail Metrics Row -->
+            <div class="metrics-grid" style="margin-top: 1rem;">
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Enabled Users ${tip('The total number of people in your organization who have been assigned a Microsoft 365 Copilot license.')}</span></div>
                     <div class="metric-value" id="km-enabledUsers">${metrics.totalEnabledUsers.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
                     <div class="metric-sublabel">Licensed for Copilot</div>
                 </div>
 
                 <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Power User Rate <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">The percentage of licensed users classified as Power Users — averaging 20+ weekly Copilot actions with consistent usage in at least 9 of the past 12 weeks. These are your AI champions.</span></span></span></div>
-                    <div class="metric-value" id="km-powerUserRate">${metrics.powerUserRate.toFixed(1)}%</div>
-                    <div class="metric-sublabel" id="km-powerUserSub">${metrics.powerUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} power users <span style="color: var(--copilot-cyan); font-size: 0.8rem;">(last 4 weeks)</span></div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Weekly Actions per User <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">The average number of Copilot actions each active user performs per week — things like accepting a suggestion, using Copilot chat, or generating a summary.</span></span></span></div>
-                    <div class="metric-value" id="km-actionsPerUser">${metrics.avgActionsPerUser.toFixed(1)}</div>
-                    <div class="metric-sublabel" id="km-actionsPerUserSub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} total/week</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Weekly Hours Saved <span class="info-tip"><span class="info-icon">?</span><span class="tip-text">Estimated time saved per week across all users. Calculated by multiplying total weekly Copilot actions by the configured minutes saved per action, then converting to hours.</span></span></span></div>
+                    <div class="metric-label"><span class="metric-label-row">Weekly Hours Saved ${tip('Estimated time saved per week across all users. Calculated by multiplying total weekly Copilot actions by the configured minutes saved per action.')}</span></div>
                     <div class="metric-value" id="km-hoursSaved">${metrics.weeklyHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
                     <div class="metric-sublabel" id="km-hoursSavedSub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} actions × ${config.minutesPerAction} min ÷ 60</div>
                 </div>
+
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Annual Value per License ${tip('The annualized productivity value generated per enabled license. Higher means each seat is delivering more return.')}</span></div>
+                    <div class="metric-value" id="km-costPerHour">$${metrics.totalEnabledUsers > 0 ? Math.round((metrics.valuePerMonth * 12) / metrics.totalEnabledUsers).toLocaleString(undefined, {maximumFractionDigits: 0}) : '0'}</div>
+                    <div class="metric-sublabel" id="km-costPerHourSub">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo × 12 ÷ ${metrics.totalEnabledUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} licenses</div>
+                </div>
             </div>
 
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Monthly Hours Saved ${tip('Estimated hours saved per month across all users. Weekly hours saved × 4.33 weeks per month.')}</span></div>
-                    <div class="metric-value" id="km-monthlyHours">${(metrics.weeklyHoursSaved * 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                    <div class="metric-sublabel" id="km-monthlyHoursSub">${metrics.weeklyHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 0})} hrs/wk × 4.33</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Monthly Actions/User ${tip('Average monthly Copilot actions per active user. This is the key engagement depth metric — higher means users are integrating Copilot into more workflows.')}</span></div>
-                    <div class="metric-value" id="km-monthlyActions">${(metrics.avgActionsPerUser * 4.33).toFixed(0)}</div>
-                    <div class="metric-sublabel" id="km-monthlyActionsSub">${metrics.avgActionsPerUser.toFixed(1)}/wk × 4.33</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Weekly Productivity Value ${tip('The estimated dollar value of time saved each week. Calculated as: total weekly actions × minutes per action ÷ 60 × hourly rate.')}</span></div>
-                    <div class="metric-value" id="km-weeklyValue">$${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                    <div class="metric-sublabel" id="km-weeklyValueSub">${metrics.totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} actions × ${config.minutesPerAction} min × $${config.professionalRate}/hr</div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Monthly Productivity Value ${tip('Weekly productivity value × 4.33 (average weeks per month). This is the headline number — the total dollar value Copilot generates each month for your organization.')}</span></div>
-                    <div class="metric-value" id="km-monthlyValue">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                    <div class="metric-sublabel" id="km-monthlyValueSub">$${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}/wk × 4.33 = ${metrics.roiMultiple.toFixed(1)}x ROI</div>
-                </div>
+            <!-- Investment Context (replaces standalone Productivity ROI section) -->
+            <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: var(--surface-raised, #253449); border-radius: 10px; border-left: 3px solid var(--copilot-blue);">
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;">
+                    <strong style="color: var(--text-primary);">Total Investment:</strong> $${metrics.monthlyCostPurchased.toLocaleString(undefined, {maximumFractionDigits: 0})}/month ($${metrics.annualCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/year) for ${metrics.totalPurchasedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} purchased licenses at $${config.licenseCost}/user/month
+                    ${metrics.unassignedLicenses > 0 ? `<br><strong style="color: var(--copilot-orange);">⚠ Unassigned:</strong> ${metrics.unassignedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} licenses not assigned ($${metrics.wastedLicenseCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo wasted)` : ''}<br>
+                    <strong style="color: var(--text-primary);">Calculation:</strong> ${metrics.totalMonthlyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} monthly actions × ${metrics.minsPerAction} min ÷ 60 × $${config.professionalRate}/hr = $${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/month
+                </p>
             </div>
             `)}<!-- end Key Metrics -->
 
-            ${section('Productivity ROI Calculation', `<div class="roi-table-container" style="box-shadow:none;border:none;padding:0;margin:0;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time Savings Assumption ${tip('The number of minutes each Copilot action is estimated to save. Default is 6 minutes based on Microsoft research. You can adjust this in the config.')}</th>
-                            <th>Hours/Month ${tip('Total actions per month × minutes per action ÷ 60. This is the raw time saved across all users.')}</th>
-                            <th>Monthly Value ${tip('Hours saved × professional hourly rate. Represents the dollar value of employee time reclaimed by Copilot.')}</th>
-                            <th>Annual Value ${tip('Monthly value × 12. The projected yearly productivity gain.')}</th>
-                            <th>Monthly ROI Multiple ${tip('Monthly productivity value ÷ monthly license cost. A 3x ROI means every $1 spent on licenses generates $3 in productivity value.')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="highlight-row">
-                            <td><strong>${metrics.minsPerAction} minutes per action</strong><br><small>Configurable setting</small></td>
-                            <td>${metrics.hoursPerMonth.toLocaleString(undefined, {maximumFractionDigits: 2})} hrs</td>
-                            <td id="dataMonthlyValue"
-                                data-without-recap="$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 2})}"
-                                data-with-recap="$${valuePerMonthWithRecap.toLocaleString(undefined, {maximumFractionDigits: 2})}">
-                                ${showRecap ? `$${valuePerMonthWithRecap.toLocaleString(undefined, {maximumFractionDigits: 2})}` : `$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 2})}`}
-                            </td>
-                            <td id="dataAnnualValue"
-                                data-without-recap="$${metrics.annualValue.toLocaleString(undefined, {maximumFractionDigits: 2})}"
-                                data-with-recap="$${annualValueWithRecap.toLocaleString(undefined, {maximumFractionDigits: 2})}">
-                                ${showRecap ? `$${annualValueWithRecap.toLocaleString(undefined, {maximumFractionDigits: 2})}` : `$${metrics.annualValue.toLocaleString(undefined, {maximumFractionDigits: 2})}`}
-                            </td>
-                            <td id="dataROIMultiple" style="color: var(--green); font-weight: bold;"
-                                data-without-recap="${metrics.roiMultiple.toFixed(1)}x"
-                                data-with-recap="${roiMultipleWithRecap.toFixed(1)}x">
-                                ${showRecap ? `${roiMultipleWithRecap.toFixed(1)}x` : `${metrics.roiMultiple.toFixed(1)}x`}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="5" style="background: var(--light-gray); padding: 1rem;">
-                                <strong>Investment:</strong> $${metrics.monthlyCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/month
-                                ($${metrics.annualCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/year) for ${metrics.totalEnabledUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} licenses at $${config.licenseCost}/user/month<br>
-                                <strong>Professional Rate:</strong> $${config.professionalRate}/hour (fully-loaded cost)<br>
-                                <strong>Calculation:</strong> ${metrics.totalMonthlyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} monthly actions × ${metrics.minsPerAction} min ÷ 60 × $${config.professionalRate}/hr = $${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}
-                                ${showRecap ? `<br><strong>Intelligent Recap:</strong> ${config.intelligentRecapActions.toLocaleString(undefined, {maximumFractionDigits: 0})} actions × 0.5 hrs × $${config.professionalRate}/hr = $${recapMonthlyValue.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo` : ''}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            ${config.totalPurchasedLicenses > 0 ? section('License Investment Summary', `
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Purchased Licenses ${tip('Total licenses your organization has procured from Microsoft, including those not yet assigned to users.')}</span></div>
+                    <div class="metric-value" style="color: var(--copilot-blue);">${metrics.totalPurchasedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel">Total procured</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Assignment Rate ${tip('Percentage of purchased licenses that have been assigned to users. 100% means no waste from unassigned seats.')}</span></div>
+                    <div class="metric-value" style="color: ${metrics.assignmentRate >= 90 ? 'var(--green)' : metrics.assignmentRate >= 70 ? 'var(--copilot-orange)' : 'var(--red)'};">${metrics.assignmentRate.toFixed(1)}%</div>
+                    <div class="metric-sublabel">${metrics.totalEnabledUsers.toLocaleString(undefined, {maximumFractionDigits: 0})} of ${metrics.totalPurchasedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} assigned</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Total Monthly Investment ${tip('The true monthly cost based on ALL purchased licenses — not just assigned ones. This is what your organization actually pays.')}</span></div>
+                    <div class="metric-value">$${metrics.monthlyCostPurchased.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel">${metrics.totalPurchasedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} × $${config.licenseCost}/mo</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Wasted License Cost ${tip('Monthly cost of licenses that are purchased but not assigned to any user. This is pure waste — assign or reclaim these seats.')}</span></div>
+                    <div class="metric-value" style="color: ${metrics.wastedLicenseCost > 0 ? 'var(--red)' : 'var(--green)'};">$${metrics.wastedLicenseCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo</div>
+                    <div class="metric-sublabel">${metrics.unassignedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} unassigned × $${config.licenseCost}</div>
+                </div>
             </div>
-            `)}<!-- end Productivity ROI -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">True ROI (vs Purchased) ${tip('Monthly productivity value ÷ total purchased license cost. This is the real ROI factoring in all seats you pay for, not just active ones.')}</span></div>
+                    <div class="metric-value" style="color: ${metrics.roiMultiple >= 1 ? 'var(--green)' : 'var(--red)'};">${metrics.roiMultiple.toFixed(1)}x</div>
+                    <div class="metric-sublabel">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})} value ÷ $${metrics.monthlyCostPurchased.toLocaleString(undefined, {maximumFractionDigits: 0})} cost</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Annual Investment ${tip('Total yearly cost for all purchased licenses. This is the number that goes on your budget line.')}</span></div>
+                    <div class="metric-value">$${metrics.annualCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel">$${metrics.monthlyCostPurchased.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo × 12</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Annual Wasted ${tip('Yearly cost of unassigned licenses. This amount could be reclaimed by either assigning seats or reducing the license count at renewal.')}</span></div>
+                    <div class="metric-value" style="color: ${metrics.wastedLicenseCost > 0 ? 'var(--red)' : 'var(--green)'};">$${(metrics.wastedLicenseCost * 12).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel">${metrics.unassignedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} seats × $${config.licenseCost} × 12</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><span class="metric-label-row">Net Value (after all costs) ${tip('Annual productivity value minus total annual license cost. Positive = net gain, negative = organization is paying more than it gets back.')}</span></div>
+                    <div class="metric-value" style="color: ${metrics.annualValue - metrics.annualCost >= 0 ? 'var(--green)' : 'var(--red)'};">$${(metrics.annualValue - metrics.annualCost).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-sublabel">$${metrics.annualValue.toLocaleString(undefined, {maximumFractionDigits: 0})} value − $${metrics.annualCost.toLocaleString(undefined, {maximumFractionDigits: 0})} cost</div>
+                </div>
+            </div>
+            `) : ''}
 
             ${section('Top 10 by Value Generated', `<div class="roi-table-container" style="box-shadow:none;border:none;padding:0;margin:0;">
                 <p style="text-align:center; margin-bottom:1rem; color: var(--text-secondary); font-size: 0.9rem;">Monthly value = weekly actions × ${config.minutesPerAction} min/action ÷ 60 × $${config.professionalRate}/hr × 4.33 weeks</p>
@@ -1480,10 +1650,22 @@ function renderResults() {
                             <td style="color: var(--green); font-weight: 700;">$${team.monthlyValue.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
                             <td>${team.weeklyHours.toFixed(0)}</td>
                         </tr>`).join('')}
+                        <tr style="border-top: 2px solid var(--copilot-blue); font-weight: 700; background: rgba(74,158,247,0.05);">
+                            <td></td>
+                            <td>Top 10 Total</td>
+                            <td>${sortedTeams.slice(0, 10).reduce((s,t) => s + t.activeUsers, 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                            <td>${sortedTeams.slice(0, 10).reduce((s,t) => s + t.powerUsers, 0)}</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td style="color: var(--green);">$${sortedTeams.slice(0, 10).reduce((s,t) => s + t.monthlyValue, 0).toLocaleString(undefined, {maximumFractionDigits: 0})} <span style="font-size:0.75rem; font-weight:400; color: var(--text-secondary);">(${((sortedTeams.slice(0, 10).reduce((s,t) => s + t.monthlyValue, 0) / sortedTeams.reduce((s,t) => s + t.monthlyValue, 0)) * 100).toFixed(0)}% of total)</span></td>
+                            <td>${sortedTeams.slice(0, 10).reduce((s,t) => s + t.weeklyHours, 0).toFixed(0)}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
             `)}<!-- end Top 10 -->
+
+            ${projections.tierHtml}
 
             ${section('All ' + (uploadedData.groupLabel || 'Teams') + ' Performance', `<div class="leaderboard-container" style="box-shadow:none;border:none;padding:0;margin:0;">
                 ${hasTimePeriods ? `<div class="time-toggle-bar" style="display:flex; justify-content:center; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
@@ -1496,6 +1678,9 @@ function renderResults() {
                 <p id="allTeamsPeriodNote" style="text-align:center; margin-bottom:0.75rem; color: var(--text-secondary); font-size: 0.85rem;">
                     Showing: <strong style="color: var(--copilot-cyan);">Entire Period</strong> &nbsp;|&nbsp; Averages computed across all weeks in selected period
                 </p>
+                <div style="display:flex; justify-content:center; margin-bottom:1rem;">
+                    <input type="text" id="teamSearchFilter" placeholder="Search ${uploadedData.groupLabel || 'teams'}..." oninput="filterTeamsTable()" style="width: 100%; max-width: 400px; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.9rem;">
+                </div>
                 <table id="teamsTable" class="sortable-table">
                     <thead>
                         <tr>
@@ -1563,7 +1748,7 @@ function renderResults() {
             </div>
             `)}<!-- end All Teams -->
 
-            ${buildProjectionTables(metrics, sortedTeams)}
+            ${projections.breakEvenHtml}${projections.opportunityHtml}${projections.projHtml}
 
             ${section('Calculation Methodology', `<div class="info-box" style="margin-top: 0;">
                 <strong>Calculation Methodology</strong>
@@ -1604,7 +1789,8 @@ function renderResults() {
             `)}<!-- end Glossary -->
 
             <div style="text-align: center; margin-top: 2rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-                <button class="btn-primary" onclick="exportToPDF()" style="background: linear-gradient(135deg, #4A9EF7, #A855F7);">Export to PDF</button>
+                <button class="btn-primary" onclick="exportToDocx()" style="background: linear-gradient(135deg, #4A9EF7, #A855F7);">Export to DOCX</button>
+                <button class="btn-primary" onclick="exportToPptx()" style="background: linear-gradient(135deg, #A855F7, #EC4899);">Export to PPTX</button>
                 <button class="btn-primary" onclick="location.reload()">Analyze Another File</button>
             </div>
         </div>
@@ -1618,29 +1804,18 @@ function renderResults() {
     initTableSorting();
 }
 
-// Export results to a polished PDF with proper pagination
-async function exportToPDF() {
-    const container = document.querySelector('.results-container');
-    if (!container) return;
-
-    const btn = document.querySelector('[onclick="exportToPDF()"]');
-    const origText = btn ? btn.textContent : '';
-    if (btn) { btn.textContent = 'Generating PDF… 0%'; btn.disabled = true; }
-
-    // Open all collapsed <details> so content is captured
+// Shared: prepare the container for capture (open sections, hide buttons, fix gradients)
+function prepareForCapture(container) {
     const closedDetails = container.querySelectorAll('details:not([open])');
     closedDetails.forEach(d => d.setAttribute('open', ''));
 
-    // Hide interactive elements
     const hideEls = container.querySelectorAll('button, .toggle-switch, input[type="range"]');
     hideEls.forEach(el => { el.dataset.prevDisplay = el.style.display; el.style.display = 'none'; });
 
-    // Constrain width for consistent rendering
     const origStyle = container.getAttribute('style') || '';
-    container.style.width = '900px';
-    container.style.maxWidth = '900px';
+    container.style.width = '1100px';
+    container.style.maxWidth = '1100px';
 
-    // Fix gradient-text rendering: html2canvas can't render background-clip:text
     const gradientEls = container.querySelectorAll('.metric-value');
     gradientEls.forEach(el => {
         el.dataset.origCss = el.getAttribute('style') || '';
@@ -1651,90 +1826,201 @@ async function exportToPDF() {
         el.style.color = '#00D4FF';
     });
 
-    function cleanup() {
-        container.setAttribute('style', origStyle);
-        closedDetails.forEach(d => d.removeAttribute('open'));
-        hideEls.forEach(el => { el.style.display = el.dataset.prevDisplay || ''; });
-        gradientEls.forEach(el => { el.setAttribute('style', el.dataset.origCss); });
-        if (btn) { btn.textContent = origText; btn.disabled = false; }
+    return { closedDetails, hideEls, origStyle, gradientEls };
+}
+
+function restoreAfterCapture(container, state) {
+    container.setAttribute('style', state.origStyle);
+    state.closedDetails.forEach(d => d.removeAttribute('open'));
+    state.hideEls.forEach(el => { el.style.display = el.dataset.prevDisplay || ''; });
+    state.gradientEls.forEach(el => { el.setAttribute('style', el.dataset.origCss); });
+}
+
+// Capture all visible sections as PNG image data arrays
+async function captureSections(container, progressCb) {
+    const isVisible = (el) => el.offsetHeight > 0 && getComputedStyle(el).display !== 'none';
+    const sections = Array.from(container.children).filter(isVisible);
+    const h2cOpts = { scale: 2, useCORS: true, backgroundColor: '#0B1120', logging: false, windowWidth: 1120 };
+    const images = [];
+    for (let i = 0; i < sections.length; i++) {
+        if (progressCb) progressCb(i, sections.length);
+        const canvas = await html2canvas(sections[i], h2cOpts);
+        images.push({ canvas, width: canvas.width, height: canvas.height, dataUrl: canvas.toDataURL('image/png') });
     }
+    return images;
+}
+
+// Export results to DOCX — each section as a full-width image (no clipping)
+async function exportToDocx() {
+    const container = document.querySelector('.results-container');
+    if (!container) return;
+
+    const btn = document.querySelector('[onclick="exportToDocx()"]');
+    const origText = btn ? btn.textContent : '';
+    if (btn) { btn.textContent = 'Generating DOCX… 0%'; btn.disabled = true; }
+
+    const state = prepareForCapture(container);
 
     try {
-        if (!window.jspdf || !window.jspdf.jsPDF) {
-            throw new Error('PDF library failed to load. Refresh the page and try again.');
-        }
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const PW = 210, PH = 297, M = 10, GAP = 3;
-        const UW = PW - 2 * M;
-        const UH = PH - 2 * M;
+        if (!window.docx) throw new Error('DOCX library failed to load. Refresh and try again.');
+        const { Document, Packer, Paragraph, ImageRun, PageBreak, TextRun, HeadingLevel, AlignmentType } = window.docx;
 
-        const h2cOpts = { scale: 2, useCORS: true, backgroundColor: '#0B1120', logging: false, windowWidth: 920 };
-        const capture = (el) => html2canvas(el, h2cOpts);
-        const mmH = (c) => (c.height * UW) / c.width;
-        const isVisible = (el) => el.offsetHeight > 0 && getComputedStyle(el).display !== 'none';
+        const images = await captureSections(container, (i, total) => {
+            if (btn) btn.textContent = `Capturing… ${Math.round(((i + 1) / total) * 100)}%`;
+        });
 
-        // ── Gather top-level sections as whole units ──
-        // Each <details> section is captured as one image to preserve visual cohesion.
-        const sections = Array.from(container.children).filter(isVisible);
-        const totalSections = sections.length;
+        if (btn) btn.textContent = 'Building DOCX…';
 
-        // ── Capture and place each section ──
-        let y = M;
-
-        function addPage() { pdf.addPage(); y = M; }
-
-        function placeImage(canvas, h) {
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', M, y, UW, h);
-            y += h + GAP;
+        // Convert dataURL to Uint8Array
+        function dataUrlToUint8(dataUrl) {
+            const base64 = dataUrl.split(',')[1];
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes;
         }
 
-        function sliceAndPlace(canvas) {
-            // Content taller than one page — slice cleanly across pages
-            const pxPerMm = canvas.width / UW;
-            let srcY = 0;
-            while (srcY < canvas.height) {
-                if (y >= PH - M - 2) addPage();
-                const availMm = (PH - M) - y;
-                const slicePx = Math.min(Math.floor(availMm * pxPerMm), canvas.height - srcY);
-                const sliceMm = slicePx / pxPerMm;
-                const slice = document.createElement('canvas');
-                slice.width = canvas.width;
-                slice.height = slicePx;
-                slice.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
-                pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', M, y, UW, sliceMm);
-                srcY += slicePx;
-                y += sliceMm;
+        // Page width in EMU (Letter: 8.5in, margins 0.5in each side = 7.5in usable)
+        const PAGE_WIDTH_EMU = 7.5 * 914400; // 6858000 EMU
+        const children = [];
+
+        // Title
+        children.push(new Paragraph({
+            children: [new TextRun({ text: 'M365 Copilot Productivity ROI Analysis', bold: true, size: 48, color: '4A9EF7' })],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 300 }
+        }));
+        children.push(new Paragraph({
+            children: [new TextRun({ text: `Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, size: 20, color: '94A3B8' })],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 }
+        }));
+
+        for (let i = 0; i < images.length; i++) {
+            const img = images[i];
+            const imgBytes = dataUrlToUint8(img.dataUrl);
+            // Scale to page width, maintain aspect ratio
+            const aspectRatio = img.height / img.width;
+            const widthEmu = PAGE_WIDTH_EMU;
+            const heightEmu = Math.round(widthEmu * aspectRatio);
+
+            children.push(new Paragraph({
+                children: [new ImageRun({ data: imgBytes, transformation: { width: Math.round(widthEmu / 914400 * 72), height: Math.round(heightEmu / 914400 * 72) }, type: 'png' })],
+                spacing: { after: 200 }
+            }));
+
+            // Page break between sections (except last)
+            if (i < images.length - 1) {
+                children.push(new Paragraph({ children: [new PageBreak()] }));
             }
         }
 
-        for (let i = 0; i < totalSections; i++) {
-            if (btn) btn.textContent = `Generating PDF… ${Math.round(((i + 1) / totalSections) * 100)}%`;
+        const doc = new Document({
+            sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 720, right: 720 } } }, children }]
+        });
 
-            const section = sections[i];
-            const canvas = await capture(section);
-            const h = mmH(canvas);
-
-            if (h <= UH) {
-                // Section fits on one page — place it, pack greedily
-                if (y + h > PH - M) addPage();
-                placeImage(canvas, h);
-            } else {
-                // Section taller than a page — start fresh and slice across pages
-                if (y > M + 2) addPage();
-                sliceAndPlace(canvas);
-                y += GAP;
-            }
-        }
-
-        if (btn) btn.textContent = 'Generating PDF… 100%';
-        pdf.save('Copilot_ROI_Analysis.pdf');
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Copilot_ROI_Analysis.docx';
+        a.click();
+        URL.revokeObjectURL(url);
     } catch (err) {
-        console.error('PDF export failed:', err);
-        alert('PDF export failed: ' + err.message);
+        console.error('DOCX export failed:', err);
+        alert('DOCX export failed: ' + err.message);
     } finally {
-        cleanup();
+        restoreAfterCapture(container, state);
+        if (btn) { btn.textContent = origText; btn.disabled = false; }
     }
+}
+
+// Export results to PPTX — one slide per section, full-bleed images
+async function exportToPptx() {
+    const container = document.querySelector('.results-container');
+    if (!container) return;
+
+    const btn = document.querySelector('[onclick="exportToPptx()"]');
+    const origText = btn ? btn.textContent : '';
+    if (btn) { btn.textContent = 'Generating PPTX… 0%'; btn.disabled = true; }
+
+    const state = prepareForCapture(container);
+
+    try {
+        if (!window.PptxGenJS) throw new Error('PPTX library failed to load. Refresh and try again.');
+
+        const images = await captureSections(container, (i, total) => {
+            if (btn) btn.textContent = `Capturing… ${Math.round(((i + 1) / total) * 100)}%`;
+        });
+
+        if (btn) btn.textContent = 'Building PPTX…';
+
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
+        pptx.author = 'Copilot ROI Calculator';
+        pptx.subject = 'M365 Copilot Productivity ROI Analysis';
+
+        const SLIDE_W = 13.33;
+        const SLIDE_H = 7.5;
+        const MARGIN = 0.3;
+        const CONTENT_W = SLIDE_W - 2 * MARGIN;
+        const CONTENT_H = SLIDE_H - 2 * MARGIN;
+
+        // Title slide
+        const titleSlide = pptx.addSlide();
+        titleSlide.background = { color: '0B1120' };
+        titleSlide.addText('M365 Copilot Productivity ROI Analysis', {
+            x: 1, y: 2.5, w: 11.33, h: 1.5,
+            fontSize: 36, bold: true, color: '4A9EF7', align: 'center', fontFace: 'Segoe UI'
+        });
+        titleSlide.addText(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), {
+            x: 1, y: 4, w: 11.33, h: 0.8,
+            fontSize: 16, color: '94A3B8', align: 'center', fontFace: 'Segoe UI'
+        });
+
+        // One slide per section
+        for (const img of images) {
+            const slide = pptx.addSlide();
+            slide.background = { color: '0B1120' };
+
+            const aspectRatio = img.height / img.width;
+            let imgW = CONTENT_W;
+            let imgH = imgW * aspectRatio;
+
+            // If image is taller than slide, scale to fit height instead
+            if (imgH > CONTENT_H) {
+                imgH = CONTENT_H;
+                imgW = imgH / aspectRatio;
+            }
+
+            const x = (SLIDE_W - imgW) / 2;
+            const y = (SLIDE_H - imgH) / 2;
+
+            slide.addImage({ data: img.dataUrl, x, y, w: imgW, h: imgH });
+        }
+
+        await pptx.writeFile({ fileName: 'Copilot_ROI_Analysis.pptx' });
+    } catch (err) {
+        console.error('PPTX export failed:', err);
+        alert('PPTX export failed: ' + err.message);
+    } finally {
+        restoreAfterCapture(container, state);
+        if (btn) { btn.textContent = origText; btn.disabled = false; }
+    }
+}
+
+// Filter All Teams table by search input
+function filterTeamsTable() {
+    const query = (document.getElementById('teamSearchFilter')?.value || '').toLowerCase();
+    const table = document.getElementById('teamsTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const teamCell = row.querySelector('td');
+        if (!teamCell) return;
+        const name = (teamCell.getAttribute('data-value') || teamCell.textContent || '').toLowerCase();
+        row.style.display = name.includes(query) ? '' : 'none';
+    });
 }
 
 // Initialize table sorting functionality
