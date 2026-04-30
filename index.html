@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M365 Copilot Productivity ROI Calculator</title>
-    <link rel="stylesheet" href="styles.css?v=18">
+    <link rel="stylesheet" href="styles.css?v=19">
     <style>
         details summary::-webkit-details-marker { display: none; }
     </style>
@@ -223,7 +223,7 @@
     <script src="lib/html2canvas.min.js"></script>
     <script src="lib/docx.umd.js"></script>
     <script src="lib/pptxgen.bundle.js"></script>
-    <script src="script.js?v=18"></script>
+    <script src="script.js?v=19"></script>
     <script>
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Productivity ROI Analysis');
@@ -239,6 +239,42 @@
                 professionalRateInput.value = industrySelect.value;
             }
         }
+
+        // Global tooltip system — positions tooltip above-left of the ? icon using fixed positioning
+        (function() {
+            const tip = document.createElement('div');
+            tip.id = 'global-tooltip';
+            document.body.appendChild(tip);
+
+            document.addEventListener('mouseenter', function(e) {
+                const infoTip = e.target.closest('.info-tip');
+                if (!infoTip) return;
+                const textEl = infoTip.querySelector('.tip-text');
+                if (!textEl) return;
+
+                tip.textContent = textEl.textContent;
+                tip.classList.add('visible');
+
+                const rect = infoTip.getBoundingClientRect();
+                // Position: above and to the left of the ? icon
+                let top = rect.top - tip.offsetHeight - 8;
+                let left = rect.left - tip.offsetWidth + rect.width;
+
+                // Keep on screen
+                if (top < 8) top = rect.bottom + 8;
+                if (left < 8) left = 8;
+                if (left + tip.offsetWidth > window.innerWidth - 8) left = window.innerWidth - tip.offsetWidth - 8;
+
+                tip.style.top = top + 'px';
+                tip.style.left = left + 'px';
+            }, true);
+
+            document.addEventListener('mouseleave', function(e) {
+                const infoTip = e.target.closest('.info-tip');
+                if (!infoTip) return;
+                tip.classList.remove('visible');
+            }, true);
+        })();
 
     </script>
 </body>
