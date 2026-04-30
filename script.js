@@ -1260,9 +1260,14 @@ function buildProjectionTables(metrics, sortedTeams) {
 
             <div style="max-width: 600px; margin: 0 auto 2rem;">
                 <label style="display: block; text-align: center; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Unlicensed Seat Count</label>
-                <input type="range" id="opp-slider" min="100" max="300000" step="100" value="1000"
-                    style="width: 100%; accent-color: var(--copilot-blue);"
-                    oninput="updateOppCost()">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="range" id="opp-slider" min="100" max="300000" step="100" value="1000"
+                        style="flex: 1; accent-color: var(--copilot-blue);"
+                        oninput="document.getElementById('opp-input').value = this.value; updateOppCost()">
+                    <input type="number" id="opp-input" min="100" max="300000" step="100" value="1000"
+                        style="width: 110px; padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--copilot-cyan); font-size: 1rem; font-weight: 600; text-align: center; font-family: inherit;"
+                        oninput="document.getElementById('opp-slider').value = this.value; updateOppCost()">
+                </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 0.25rem;">
                     <small style="color: var(--text-secondary);">100</small>
                     <strong id="opp-slider-label" style="font-size: 1.1rem; color: var(--copilot-cyan);">1,000 users</strong>
@@ -1326,6 +1331,8 @@ function updateOppCost() {
     const fmt = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
     document.getElementById('opp-slider-label').textContent = fmt(count) + ' users';
+    const inputEl = document.getElementById('opp-input');
+    if (inputEl && parseInt(inputEl.value) !== count) inputEl.value = count;
 
     const licensingCost = p.licenseCost * count;
     const potentialValue = p.valuePerUser * count;
