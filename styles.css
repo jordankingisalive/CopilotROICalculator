@@ -540,7 +540,10 @@ header h1 {
 .info-tip .tip-text {
     visibility: hidden;
     opacity: 0;
-    position: fixed;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 9999;
     background: var(--surface);
     color: var(--text-primary);
