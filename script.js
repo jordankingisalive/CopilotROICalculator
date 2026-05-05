@@ -1,6 +1,7 @@
 // Global state
 let uploadedData = null;
 let resultsDisplayed = false;
+let originalMinutesPerAction = null; // stores the user's default choice at first calculation
 // Tooltip helper — returns inline HTML for a hover ? icon with explanation
 const tip = (text) => `<span class="info-tip"><span class="info-icon">?</span><span class="tip-text">${text}</span></span>`;
 // Collapsible section wrapper — renders as <details open> so user can collapse before PDF export
@@ -230,6 +231,10 @@ function syncConfigFromInputs() {
 function runCalculation() {
     if (!uploadedData) return;
     syncConfigFromInputs();
+    // Capture the user's original minutes-per-action choice on first calculation
+    if (originalMinutesPerAction === null) {
+        originalMinutesPerAction = config.minutesPerAction;
+    }
     showLoading();
     // Small delay so loading spinner is visible
     setTimeout(() => {
@@ -1038,45 +1043,39 @@ function buildProjectionTables(metrics, sortedTeams) {
     const avgWeekly = metrics.avgActionsPerUser;
     const avgMonthly = avgWeekly * 4.33;
 
-    // Helper: break-even actions needed at a given price
-    const be = (price) => (price / valPerAction).toFixed(1);
-    // Helper: ROI at a given price
-    const roiAt = (price) => (avgMonthly * valPerAction / price).toFixed(1);
+    // ---- BREAK-EVEN TABLE (framed by time-savings assumptions) ----
+    // Show break-even at different minutes-per-action assumptions at the user's actual license cost
+    const mpaScenarios = [2, 3, 6, 10].map(m => ({
+        label: `${m} min/action`,
+        mpa: m,
+        valPerAction: (m / 60) * rate
+    }));
 
-    // Price tiers for break-even table
-    const tiers = [
-        { label: `Current @ $${licenseCost}`, price: licenseCost },
-    ];
-    // Add common expansion tiers if different from current
-    [9, 12, 15, 18, 24, 30].forEach(p => {
-        if (p !== licenseCost) tiers.push({ label: `@ $${p}/mo`, price: p });
-    });
-    // Keep it manageable - show current + 4 most relevant
-    const priceTiers = [tiers[0]];
-    const others = tiers.slice(1).sort((a, b) => a.price - b.price);
-    // Pick a spread: lowest, a mid, and highest that differ from current
-    if (others.length > 0) {
-        const spread = [others[0]];
-        if (others.length > 2) spread.push(others[Math.floor(others.length / 2)]);
-        if (others.length > 1) spread.push(others[others.length - 1]);
-        spread.forEach(t => { if (!priceTiers.find(p => p.price === t.price)) priceTiers.push(t); });
-    }
+    // Break-even actions needed at each time-savings scenario
+    const beAtMpa = (scenario, multiplier) => (licenseCost * multiplier / scenario.valPerAction).toFixed(1);
+    // ROI at each scenario given user's actual average monthly actions
+    const roiAtMpa = (scenario) => (avgMonthly * scenario.valPerAction / licenseCost).toFixed(1);
 
-    // ---- BREAK-EVEN TABLE ----
-    const beHeaders = priceTiers.map(t => `<th>${t.label}</th>`).join('');
+    const beHeaders = mpaScenarios.map(s => {
+        const isCurrent = s.mpa === mpa;
+        const style = isCurrent ? ' style="color: var(--copilot-cyan); font-weight: 700;"' : '';
+        return `<th${style}>${s.label}${isCurrent ? ' ✦' : ''}</th>`;
+    }).join('');
+
     const beRow = (label, multiplier) => {
-        const cells = priceTiers.map(t => `<td>${(t.price * multiplier / valPerAction).toFixed(1)}</td>`).join('');
+        const cells = mpaScenarios.map(s => {
+            const isCurrent = s.mpa === mpa;
+            const style = isCurrent ? ' style="font-weight: 600; color: var(--copilot-cyan);"' : '';
+            return `<td${style}>${beAtMpa(s, multiplier)}</td>`;
+        }).join('');
         return `<tr><td><strong>${label}</strong></td>${cells}</tr>`;
     };
 
     const breakEvenHtml = section('Break-Even & ROI Thresholds', `
         <div class="roi-table-container" style="box-shadow:none;border:none;padding:0;margin:0;">
             <p style="text-align:center; margin-bottom:1rem; color: var(--text-secondary);">
-                Shows how many Copilot actions per user per month are needed to break even on the license cost at different price points.
-            </p>
-            <p style="text-align:center; margin-bottom:1rem; color: var(--text-secondary);">
-                Actions per user per month required to reach each ROI target
-                (at ${mpa} min/action, $${rate}/hr)
+                How many Copilot actions per user per month are needed to break even on your <strong>$${licenseCost}/user/month</strong> license cost
+                under different time-savings assumptions. ✦ = your current setting.
             </p>
             <table>
                 <thead>
@@ -1088,15 +1087,21 @@ function buildProjectionTables(metrics, sortedTeams) {
                     ${beRow('5x Return', 5)}
                     ${beRow('10x Return', 10)}
                     <tr style="border-top: 2px solid var(--copilot-blue);">
-                        <td><strong>Your Actual (avg)</strong></td>
-                        ${priceTiers.map(t => `<td style="color: var(--green); font-weight: bold;">${(avgMonthly * valPerAction / t.price).toFixed(1)}x ROI</td>`).join('')}
+                        <td><strong>Your Actual ROI</strong></td>
+                        ${mpaScenarios.map(s => {
+                            const isCurrent = s.mpa === mpa;
+                            const roi = roiAtMpa(s);
+                            return `<td style="color: var(--green); font-weight: bold;${isCurrent ? ' text-decoration: underline;' : ''}">${roi}x</td>`;
+                        }).join('')}
                     </tr>
                 </tbody>
             </table>
             <div class="info-box" style="margin-top:1rem;">
-                <p><strong>Your users average ~${avgMonthly.toFixed(0)} actions/month</strong>, which
-                ${avgMonthly > parseFloat(be(licenseCost)) ? 'exceeds' : 'is below'} break-even
-                (${be(licenseCost)} actions) at the current $${licenseCost}/user/month rate.</p>
+                <p><strong>Your users average ~${avgMonthly.toFixed(0)} actions/month.</strong>
+                At your current assumption of <strong>${mpa} min/action</strong> and <strong>$${rate}/hr</strong>,
+                break-even requires just <strong>${(licenseCost / valPerAction).toFixed(1)} actions/month</strong> —
+                your users ${avgMonthly > (licenseCost / valPerAction) ? `exceed this by <strong style="color: var(--green);">${((avgMonthly / (licenseCost / valPerAction)) - 1).toFixed(0)}x</strong>` : 'are approaching this target'}.</p>
+                <p style="margin-top:0.5rem;">Even at a conservative <strong>2 min/action</strong>, your deployment delivers <strong>${roiAtMpa(mpaScenarios[0])}x ROI</strong>.</p>
             </div>
         </div>
         `);
@@ -1375,6 +1380,31 @@ function setOppView(view) {
     updateOppCost();
 }
 
+// ---- MINUTES PER ACTION TOGGLE ----
+// Build toggle buttons for 3 min, 6 min, and the user's original choice (if different)
+function buildMpaToggleButtons() {
+    const presets = [3, 6];
+    const options = new Set(presets);
+    if (originalMinutesPerAction !== null) options.add(originalMinutesPerAction);
+    const sorted = [...options].sort((a, b) => a - b);
+
+    return sorted.map(val => {
+        const isActive = config.minutesPerAction === val;
+        const isDefault = val === originalMinutesPerAction;
+        const label = `${val} min` + (isDefault ? ' (your default)' : '');
+        const activeStyle = isActive
+            ? 'background: linear-gradient(135deg, #4A9EF7, #A855F7); color: #fff; border-color: transparent; font-weight: 700;'
+            : 'background: var(--surface, #1E293B); color: var(--text-secondary); border-color: var(--border, rgba(255,255,255,0.08));';
+        return `<button onclick="switchMinutesPerAction(${val})" style="padding:0.5rem 1.25rem; border-radius:8px; border:1px solid; cursor:pointer; font-size:0.9rem; font-family:inherit; transition:all 0.2s; ${activeStyle}">${label}</button>`;
+    }).join('');
+}
+
+// Switch minutes per action and re-render the entire report
+function switchMinutesPerAction(minutes) {
+    config.minutesPerAction = minutes;
+    renderResults();
+}
+
 // Render results page
 function renderResults() {
     const metrics = calculateMetrics(uploadedData);
@@ -1481,6 +1511,12 @@ function renderResults() {
                 <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none; font-size: 0.95rem;">📊 View more reports on the Analytics Hub →</a></p>
                 <p class="print-hide" style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">⛶ This report is best viewed in full screen. Tooltips may not appear unless the browser window is maximized.</p>
             </header>
+
+            <!-- Minutes per Action Toggle -->
+            <div class="mpa-toggle-bar" style="display:flex; align-items:center; justify-content:center; gap:0.75rem; padding:0.75rem 1.25rem; background: var(--surface-raised, #253449); border:1px solid var(--border, rgba(255,255,255,0.08)); border-radius:12px; margin:1rem 0 1.5rem; flex-wrap:wrap;">
+                <span style="font-size:0.9rem; font-weight:600; color:var(--text-secondary);">Time Saved per Action:</span>
+                ${buildMpaToggleButtons()}
+            </div>
 
             <!-- Executive Summary -->
             <div style="background: linear-gradient(135deg, rgba(74,158,247,0.08), rgba(0,212,255,0.08)); border: 1px solid rgba(74,158,247,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1rem 0 1.5rem; text-align: center;">
