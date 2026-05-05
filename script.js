@@ -1381,15 +1381,17 @@ function setOppView(view) {
 }
 
 // ---- MINUTES PER ACTION TOGGLE ----
-// Build toggle buttons for 3 min, 6 min, and the user's original choice (if different)
+// Build toggle buttons for 3 min, 6 min, the user's original choice (if different), plus a custom input
 function buildMpaToggleButtons() {
     const presets = [3, 6];
     const options = new Set(presets);
     if (originalMinutesPerAction !== null) options.add(originalMinutesPerAction);
     const sorted = [...options].sort((a, b) => a - b);
 
-    return sorted.map(val => {
-        const isActive = config.minutesPerAction === val;
+    const isCustom = !sorted.includes(config.minutesPerAction);
+
+    const buttons = sorted.map(val => {
+        const isActive = config.minutesPerAction === val && !isCustom;
         const isDefault = val === originalMinutesPerAction;
         const label = `${val} min` + (isDefault ? ' (your default)' : '');
         const activeStyle = isActive
@@ -1397,6 +1399,28 @@ function buildMpaToggleButtons() {
             : 'background: var(--surface, #1E293B); color: var(--text-secondary); border-color: var(--border, rgba(255,255,255,0.08));';
         return `<button onclick="switchMinutesPerAction(${val})" style="padding:0.5rem 1.25rem; border-radius:8px; border:1px solid; cursor:pointer; font-size:0.9rem; font-family:inherit; transition:all 0.2s; ${activeStyle}">${label}</button>`;
     }).join('');
+
+    const customActiveStyle = isCustom
+        ? 'border-color: var(--copilot-blue); background: rgba(74,158,247,0.15); color: var(--copilot-cyan); font-weight: 700;'
+        : 'border-color: var(--border, rgba(255,255,255,0.08)); background: var(--surface, #1E293B); color: var(--text-secondary);';
+
+    const customBox = `<span style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.35rem 0.75rem; border-radius:8px; border:1px solid; font-size:0.9rem; ${customActiveStyle}">
+        <input type="number" id="mpaCustomInput" min="1" max="30" step="0.5" value="${isCustom ? config.minutesPerAction : ''}" placeholder="—"
+            style="width:3rem; padding:0.2rem 0.3rem; border-radius:4px; border:1px solid var(--border, rgba(255,255,255,0.08)); background:var(--surface-raised, #253449); color:var(--text-primary, #F1F5F9); font-size:0.9rem; font-family:inherit; text-align:center;"
+            onkeydown="if(event.key==='Enter'){applyCustomMpa();}"
+        > min <button onclick="applyCustomMpa()" style="padding:0.2rem 0.6rem; border-radius:6px; border:1px solid var(--copilot-blue); background:var(--copilot-blue); color:#fff; font-size:0.75rem; font-weight:600; cursor:pointer; font-family:inherit;">Go</button>
+    </span>`;
+
+    return buttons + customBox;
+}
+
+// Apply custom minutes per action from the input box
+function applyCustomMpa() {
+    const input = document.getElementById('mpaCustomInput');
+    if (!input) return;
+    const val = parseFloat(input.value);
+    if (!val || val < 1 || val > 30) return;
+    switchMinutesPerAction(val);
 }
 
 // Switch minutes per action and re-render the entire report
