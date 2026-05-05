@@ -1405,6 +1405,28 @@ function switchMinutesPerAction(minutes) {
     renderResults();
 }
 
+// Switch between report tabs
+function switchReportTab(tabId) {
+    // Hide all tab panels
+    document.querySelectorAll('.report-tab-content').forEach(panel => {
+        panel.style.display = 'none';
+    });
+    // Show selected panel
+    const target = document.getElementById('tab-' + tabId);
+    if (target) {
+        target.style.display = 'block';
+        target.style.animation = 'fadeIn 0.3s ease';
+    }
+    // Update tab button styles
+    document.querySelectorAll('.report-tab').forEach(btn => {
+        const isActive = btn.dataset.tab === tabId;
+        btn.style.borderBottomColor = isActive ? 'var(--copilot-blue)' : 'transparent';
+        btn.style.background = isActive ? 'var(--surface-raised, #253449)' : 'var(--surface, #1E293B)';
+        btn.style.color = isActive ? 'var(--text-primary, #F1F5F9)' : 'var(--text-secondary, #94A3B8)';
+        btn.classList.toggle('active', isActive);
+    });
+}
+
 // Render results page
 function renderResults() {
     const metrics = calculateMetrics(uploadedData);
@@ -1509,17 +1531,27 @@ function renderResults() {
                 <h1>M365 Copilot Productivity ROI Analysis Results</h1>
                 <p class="subtitle">Based on ${rows.length} ${uploadedData.groupLabel || 'teams'} • ${config.analysisWeeks} weeks of data${uploadedData.dateRange ? ` (${uploadedData.dateRange})` : ''}</p>
                 <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none; font-size: 0.95rem;">📊 View more reports on the Analytics Hub →</a></p>
-                <p class="print-hide" style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">⛶ This report is best viewed in full screen. Tooltips may not appear unless the browser window is maximized.</p>
             </header>
 
             <!-- Minutes per Action Toggle -->
-            <div class="mpa-toggle-bar" style="display:flex; align-items:center; justify-content:center; gap:0.75rem; padding:0.75rem 1.25rem; background: var(--surface-raised, #253449); border:1px solid var(--border, rgba(255,255,255,0.08)); border-radius:12px; margin:1rem 0 1.5rem; flex-wrap:wrap;">
+            <div class="mpa-toggle-bar" style="display:flex; align-items:center; justify-content:center; gap:0.75rem; padding:0.75rem 1.25rem; background: var(--surface-raised, #253449); border:1px solid var(--border, rgba(255,255,255,0.08)); border-radius:12px; margin:1rem 0 0.5rem; flex-wrap:wrap;">
                 <span style="font-size:0.9rem; font-weight:600; color:var(--text-secondary);">Time Saved per Action:</span>
                 ${buildMpaToggleButtons()}
             </div>
 
+            <!-- TAB BAR -->
+            <div class="report-tabs" style="display:flex; gap:0; margin:1.5rem 0 0; border-bottom:3px solid var(--border, rgba(255,255,255,0.08));">
+                <button class="report-tab active" data-tab="summary" onclick="switchReportTab('summary')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid var(--copilot-blue); background:var(--surface-raised, #253449); color:var(--text-primary, #F1F5F9); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">📊 Executive Summary</button>
+                <button class="report-tab" data-tab="teams" onclick="switchReportTab('teams')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid transparent; background:var(--surface, #1E293B); color:var(--text-secondary, #94A3B8); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">👥 Team Performance</button>
+                <button class="report-tab" data-tab="roi" onclick="switchReportTab('roi')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid transparent; background:var(--surface, #1E293B); color:var(--text-secondary, #94A3B8); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">💰 ROI Analysis</button>
+                <button class="report-tab" data-tab="reference" onclick="switchReportTab('reference')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid transparent; background:var(--surface, #1E293B); color:var(--text-secondary, #94A3B8); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">📖 Reference</button>
+            </div>
+
+            <!-- TAB: Executive Summary -->
+            <div class="report-tab-content" id="tab-summary" style="display:block; animation: fadeIn 0.3s ease;">
+
             <!-- Executive Summary -->
-            <div style="background: linear-gradient(135deg, rgba(74,158,247,0.08), rgba(0,212,255,0.08)); border: 1px solid rgba(74,158,247,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1rem 0 1.5rem; text-align: center;">
+            <div style="background: linear-gradient(135deg, rgba(74,158,247,0.08), rgba(0,212,255,0.08)); border: 1px solid rgba(74,158,247,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0 1.5rem; text-align: center;">
                 <p style="font-size: 1.05rem; color: var(--text-primary); margin: 0; line-height: 1.6;">
                     Your <strong style="color: var(--copilot-cyan);">${metrics.totalEnabledUsers.toLocaleString()}</strong> Copilot licenses generate
                     <strong style="color: var(--green);">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/month</strong> in productivity value —
@@ -1668,6 +1700,11 @@ function renderResults() {
             </div>
             `) : ''}
 
+            </div><!-- end TAB: Executive Summary -->
+
+            <!-- TAB: Team Performance -->
+            <div class="report-tab-content" id="tab-teams" style="display:none;">
+
             ${section('Top 10 by Value Generated', `<div class="roi-table-container" style="box-shadow:none;border:none;padding:0;margin:0;">
                 <p style="text-align:center; margin-bottom:1rem; color: var(--text-secondary); font-size: 0.9rem;">Monthly value = weekly actions × ${config.minutesPerAction} min/action ÷ 60 × $${config.professionalRate}/hr × 4.33 weeks</p>
                 ${hasTimePeriods ? `<div class="time-toggle-bar" style="display:flex; justify-content:center; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
@@ -1791,7 +1828,17 @@ function renderResults() {
             </div>
             `)}<!-- end All Teams -->
 
+            </div><!-- end TAB: Team Performance -->
+
+            <!-- TAB: ROI Analysis -->
+            <div class="report-tab-content" id="tab-roi" style="display:none;">
+
             ${projections.breakEvenHtml}${projections.opportunityHtml}${projections.projHtml}
+
+            </div><!-- end TAB: ROI Analysis -->
+
+            <!-- TAB: Reference -->
+            <div class="report-tab-content" id="tab-reference" style="display:none;">
 
             ${section('Calculation Methodology', `<div class="info-box" style="margin-top: 0;">
                 <strong>Calculation Methodology</strong>
@@ -1838,6 +1885,8 @@ function renderResults() {
             </table>
             `)}<!-- end Glossary -->
 
+            </div><!-- end TAB: Reference -->
+
             <div style="text-align: center; margin-top: 2rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
                 <button class="btn-primary" onclick="exportToDocx()" style="background: linear-gradient(135deg, #4A9EF7, #A855F7);">Export to DOCX</button>
                 <button class="btn-primary" onclick="exportToPptx()" style="background: linear-gradient(135deg, #A855F7, #EC4899);">Export to PPTX</button>
@@ -1860,6 +1909,14 @@ function prepareForCapture(container) {
     const closedDetails = container.querySelectorAll('details:not([open])');
     closedDetails.forEach(d => d.setAttribute('open', ''));
 
+    // Show all tab panels for export
+    const hiddenTabs = container.querySelectorAll('.report-tab-content');
+    hiddenTabs.forEach(t => { t.dataset.prevDisplay = t.style.display; t.style.display = 'block'; });
+
+    // Hide tab bar itself
+    const tabBar = container.querySelector('.report-tabs');
+    if (tabBar) { tabBar.dataset.prevDisplay = tabBar.style.display; tabBar.style.display = 'none'; }
+
     const hideEls = container.querySelectorAll('button, .toggle-switch, input[type="range"]');
     hideEls.forEach(el => { el.dataset.prevDisplay = el.style.display; el.style.display = 'none'; });
 
@@ -1877,7 +1934,7 @@ function prepareForCapture(container) {
         el.style.color = '#00D4FF';
     });
 
-    return { closedDetails, hideEls, origStyle, gradientEls };
+    return { closedDetails, hideEls, origStyle, gradientEls, hiddenTabs, tabBar };
 }
 
 function restoreAfterCapture(container, state) {
@@ -1885,6 +1942,9 @@ function restoreAfterCapture(container, state) {
     state.closedDetails.forEach(d => d.removeAttribute('open'));
     state.hideEls.forEach(el => { el.style.display = el.dataset.prevDisplay || ''; });
     state.gradientEls.forEach(el => { el.setAttribute('style', el.dataset.origCss); });
+    // Restore tab panel visibility
+    if (state.hiddenTabs) state.hiddenTabs.forEach(t => { t.style.display = t.dataset.prevDisplay || ''; });
+    if (state.tabBar) state.tabBar.style.display = state.tabBar.dataset.prevDisplay || '';
 }
 
 // Capture all visible sections as PNG image data arrays
