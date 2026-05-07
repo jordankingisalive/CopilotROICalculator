@@ -2663,6 +2663,7 @@ async function exportExecutiveDeck() {
         const fmt = n => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
         const pct = n => typeof n === 'number' ? n.toFixed(1) + '%' : n;
         const fmtM = n => n >= 1000000 ? '$' + (n / 1000000).toFixed(2) + 'M' : '$' + fmt(Math.round(n));
+        const singularLabel = groupLabel.endsWith('s') ? groupLabel.slice(0, -1) : groupLabel;
         const totalSlides = 9;
 
         const pptx = new PptxGenJS();
@@ -2759,7 +2760,7 @@ async function exportExecutiveDeck() {
             x: 0.70, y: 4.20, w: 11.0, h: 0.80, fontSize: 20, fontFace: 'Calibri', color: WHITE
         });
         // Data context
-        s1.addText(`Based on ${rows.length} ${groupLabel} (aggregated)  \u2022  ${weeks} weeks of data  \u2022  ${dateRange}`, {
+        s1.addText(`Based on ${rows.length} ${groupLabel}  \u2022  ${weeks} weeks of data  \u2022  ${dateRange}`, {
             x: 0.70, y: 5.20, w: 11.0, h: 0.40, fontSize: 13, fontFace: 'Calibri', color: MUTED
         });
         // Footer bar
@@ -2930,7 +2931,7 @@ async function exportExecutiveDeck() {
         s4.addText(`of total monthly productivity value concentrated in top ${Math.min(10, rows.length)} of ${rows.length} ${groupLabel}`, { x: 9.65, y: 4.45, w: 3.0, h: 0.90, fontSize: 12, fontFace: 'Calibri', color: TEXT });
         s4.addShape(pptx.shapes.RECTANGLE, { x: 9.65, y: 5.40, w: 2.90, h: 0.04, fill: { color: CARD_ALT } });
         s4.addText('Action', { x: 9.65, y: 5.55, w: 3.0, h: 0.30, fontSize: 11, fontFace: 'Calibri', color: CYAN, bold: true });
-        s4.addText(`Replicate top ${groupLabel.slice(0, -1)} enablement playbooks in mid-tier ${groupLabel} to lift overall value`, { x: 9.65, y: 5.85, w: 3.0, h: 0.85, fontSize: 11, fontFace: 'Calibri', color: TEXT });
+        s4.addText(`Replicate top ${singularLabel} enablement playbooks in mid-tier ${groupLabel} to lift overall value`, { x: 9.65, y: 5.85, w: 3.0, h: 0.85, fontSize: 11, fontFace: 'Calibri', color: TEXT });
         addFooter(s4, 4);
 
         s4.addNotes(
@@ -3223,7 +3224,7 @@ async function exportExecutiveDeck() {
             s9.addText(rec.body, { x: 3.55, y: ry + 0.60, w: 9.0, h: 0.65, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top' });
         });
 
-        s9.addText(`Source: Copilot ROI Analysis  \u2022  ${rows.length} ${groupLabel} aggregated  \u2022  ${weeks} weeks  \u2022  $${config.professionalRate}/hr fully-loaded rate`, {
+        s9.addText(`Source: Copilot ROI Analysis  \u2022  ${rows.length} ${groupLabel}  \u2022  ${weeks} weeks  \u2022  $${config.professionalRate}/hr fully-loaded rate`, {
             x: 2.40, y: 7.05, w: 10.40, h: 0.30, fontSize: 9, fontFace: 'Calibri', color: MUTED
         });
 
