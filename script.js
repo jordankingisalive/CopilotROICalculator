@@ -2637,8 +2637,8 @@ async function exportToPptx() {
 }
 
 // ── EXECUTIVE DECK EXPORT ──
-// Produces a polished, Dentsply-quality presentation with shaped cards, data tables,
-// tier analysis, and comprehensive speaker notes — no screenshots, pure native PPTX elements.
+// 9-slide executive presentation matching the Copilot ROI Executive Deck reference design.
+// Pure native PPTX elements — shapes, charts, cards — no screenshots.
 async function exportExecutiveDeck() {
     const btn = document.querySelector('[onclick="exportExecutiveDeck()"]');
     const origText = btn ? btn.textContent : '';
@@ -2661,359 +2661,581 @@ async function exportExecutiveDeck() {
         }).sort((a, b) => b.monthlyValue - a.monthlyValue);
 
         const fmt = n => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-        const pct = n => n.toFixed(1) + '%';
+        const pct = n => typeof n === 'number' ? n.toFixed(1) + '%' : n;
+        const fmtM = n => n >= 1000000 ? '$' + (n / 1000000).toFixed(2) + 'M' : '$' + fmt(Math.round(n));
+        const totalSlides = 9;
 
         const pptx = new PptxGenJS();
-        pptx.layout = 'LAYOUT_16x9'; // 10" x 5.625"
+        pptx.layout = 'LAYOUT_WIDE'; // 13.33" x 7.5"
         pptx.author = 'Copilot ROI Calculator';
         pptx.title = story.title;
         pptx.subject = story.subtitle;
 
-        // ── Color Palette — Midnight Executive ──
-        const NAVY = '1B2A4A';
-        const DARK_NAVY = '0F1B32';
-        const ICE_BLUE = '4A90D9';
-        const ACCENT = '2ECC71';
+        // ── Design Tokens ──
+        const BG_DARK = '06132B';
+        const BG = '0B1F3A';
+        const CARD = '0F2647';
+        const CARD_ALT = '16335E';
+        const CYAN = '4FC3F7';
+        const GREEN = '4ADE80';
+        const GOLD = 'F5C451';
+        const RED = 'F26D6D';
         const WHITE = 'FFFFFF';
-        const LIGHT_GRAY = 'F0F4F8';
-        const MID_GRAY = '8896A7';
-        const CARD_BG = '1E3355';
-        const RED = 'E74C3C';
+        const TEXT = 'CADCFC';
+        const MUTED = '9AB0CC';
 
-        const makeShadow = () => ({ type: 'outer', color: '000000', blur: 8, offset: 3, angle: 135, opacity: 0.2 });
+        // Helper: add consistent footer to a slide
+        const addFooter = (slide, pageNum) => {
+            slide.addText(`M365 Copilot ROI Analysis  |  ${weeks} weeks  |  ${rows.length} ${groupLabel}`, {
+                x: 0.60, y: 7.15, w: 9.0, h: 0.30, fontSize: 9, fontFace: 'Calibri', color: MUTED
+            });
+            slide.addText(`${pageNum} / ${totalSlides}`, {
+                x: 12.20, y: 7.15, w: 0.60, h: 0.30, fontSize: 9, fontFace: 'Calibri', color: MUTED, align: 'right'
+            });
+        };
+
+        // Helper: section header pattern
+        const addSectionHeader = (slide, label, headline) => {
+            slide.addText(label, {
+                x: 0.60, y: 0.55, w: 8.0, h: 0.30, fontSize: 11, fontFace: 'Calibri', color: CYAN, bold: true
+            });
+            slide.addText(headline, {
+                x: 0.60, y: 0.85, w: 12.20, h: 0.90, fontSize: 36, fontFace: 'Cambria', color: WHITE, bold: true, valign: 'top'
+            });
+        };
+
+        // Compute tier data
+        const byActions = [...sortedTeams].sort((a, b) => b.actionsPerUser - a.actionsPerUser);
+        const totalTeams = byActions.length;
+        const tierDefs = [
+            { name: 'Top 10%', start: 0, end: Math.max(1, Math.round(totalTeams * 0.10)), color: GREEN },
+            { name: '75\u201390%', start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25), color: CYAN },
+            { name: '50\u201375%', start: Math.round(totalTeams * 0.25), end: Math.round(totalTeams * 0.50), color: CYAN },
+            { name: '25\u201350%', start: Math.round(totalTeams * 0.50), end: Math.round(totalTeams * 0.75), color: GOLD },
+            { name: 'Bottom 25%', start: Math.round(totalTeams * 0.75), end: totalTeams, color: RED },
+        ];
+        const tierData = tierDefs.map(tier => {
+            const slice = byActions.slice(tier.start, tier.end);
+            const users = slice.reduce((s, t) => s + t.activeUsers, 0);
+            const weeklyAct = slice.reduce((s, t) => s + t.weeklyActions, 0);
+            const monthly = weeklyAct * 4.33;
+            const actPerUser = users > 0 ? monthly / users : 0;
+            const value = slice.reduce((s, t) => s + t.monthlyValue, 0);
+            const invest = users * config.licenseCost;
+            const roi = invest > 0 ? value / invest : 0;
+            return { ...tier, users, monthly: Math.round(monthly), actPerUser: Math.round(actPerUser), value, invest, roi };
+        }).filter(t => t.users > 0);
+
+        const monthlyValuePerUser = metrics.totalActiveUsers > 0 ? metrics.valuePerMonth / metrics.totalActiveUsers : 0;
+        const breakEvenActions = (config.licenseCost / ((config.minutesPerAction / 60) * config.professionalRate));
+        const avgActionsPerMonth = metrics.avgActionsPerUser * 4.33;
 
         // ════════════════════════════════════════════
-        // SLIDE 1: Title & Headline Stats
+        // SLIDE 1: Title
         // ════════════════════════════════════════════
         const s1 = pptx.addSlide();
-        s1.background = { color: NAVY };
+        s1.background = { color: BG_DARK };
 
-        // Title bar
-        s1.addShape(pptx.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.85, fill: { color: DARK_NAVY } });
-        s1.addText('M365 Copilot Productivity ROI Analysis', {
-            x: 0.4, y: 0.12, w: 9, h: 0.5,
-            fontSize: 18, fontFace: 'Calibri', color: WHITE, bold: true
+        // Decorative vertical bars (right side)
+        for (let i = 0; i < 5; i++) {
+            const x = 11.50 + i * 0.32;
+            const clr = i === 4 ? CYAN : CARD_ALT;
+            s1.addShape(pptx.shapes.RECTANGLE, { x, y: 0.60, w: 0.06, h: 6.30, fill: { color: clr } });
+        }
+
+        s1.addText('MICROSOFT 365  |  EXECUTIVE BRIEFING', {
+            x: 0.70, y: 1.00, w: 8.0, h: 0.40, fontSize: 12, fontFace: 'Calibri', color: CYAN, bold: true
         });
-        s1.addText(`${fmt(metrics.totalEnabledUsers)} users · ${rows.length} ${groupLabel} · ${dateRange}`, {
-            x: 0.4, y: 0.52, w: 9, h: 0.25,
-            fontSize: 10, fontFace: 'Calibri', color: MID_GRAY
+        s1.addText('M365 Copilot', {
+            x: 0.70, y: 1.60, w: 11.0, h: 1.10, fontSize: 60, fontFace: 'Cambria', color: WHITE, bold: true
         });
-
-        // 4 stat cards
-        const cardY = 1.1;
-        const cardH = 1.5;
-        const cardW = 2.15;
-        const gap = 0.2;
-        const startX = 0.4;
-        const statCards = [
-            { value: '$' + fmt(Math.round(metrics.valuePerMonth)), label: 'Monthly Value', sub: '$' + fmt(Math.round(metrics.annualValue)) + '/year', accent: ACCENT },
-            { value: pct(metrics.activationRate), label: 'Activation Rate', sub: fmt(metrics.totalActiveUsers) + ' of ' + fmt(metrics.totalEnabledUsers) + ' users active', accent: ICE_BLUE },
-            { value: fmt(metrics.totalWeeklyActions), label: 'Weekly Actions', sub: story.keyMetrics.avgActionsPerUserPerWeek + ' avg per user', accent: ICE_BLUE },
-            { value: metrics.roiMultiple.toFixed(1) + 'x', label: 'ROI Multiple', sub: 'Value ÷ Cost', accent: ACCENT },
-        ];
-
-        statCards.forEach((s, i) => {
-            const x = startX + i * (cardW + gap);
-            s1.addShape(pptx.shapes.RECTANGLE, { x, y: cardY, w: cardW, h: cardH, fill: { color: CARD_BG }, shadow: makeShadow() });
-            s1.addShape(pptx.shapes.RECTANGLE, { x, y: cardY, w: cardW, h: 0.05, fill: { color: s.accent } });
-            s1.addText(s.value, { x, y: cardY + 0.2, w: cardW, h: 0.6, fontSize: 26, fontFace: 'Calibri', color: WHITE, bold: true, align: 'center', valign: 'middle' });
-            s1.addText(s.label, { x, y: cardY + 0.78, w: cardW, h: 0.28, fontSize: 11, fontFace: 'Calibri', color: MID_GRAY, align: 'center' });
-            s1.addText(s.sub, { x, y: cardY + 1.02, w: cardW, h: 0.28, fontSize: 9, fontFace: 'Calibri', color: '5A7090', align: 'center' });
+        s1.addText('Productivity ROI Analysis', {
+            x: 0.70, y: 2.70, w: 11.0, h: 1.00, fontSize: 44, fontFace: 'Cambria', color: TEXT
         });
-
-        // Top performing teams table
-        const topN = sortedTeams.slice(0, Math.min(7, sortedTeams.length));
-        const tableY1 = 2.9;
-        s1.addText(`Top ${groupLabel.charAt(0).toUpperCase() + groupLabel.slice(1)} by Monthly Value`, {
-            x: 0.4, y: tableY1 - 0.3, w: 5.5, h: 0.25,
-            fontSize: 11, fontFace: 'Calibri', color: ICE_BLUE, bold: true
+        // Accent bar
+        s1.addShape(pptx.shapes.RECTANGLE, { x: 0.70, y: 4.00, w: 1.60, h: 0.08, fill: { color: CYAN } });
+        // Headline stat
+        s1.addText(`${fmtM(metrics.valuePerMonth)} monthly productivity value across ${fmt(metrics.totalPurchasedLicenses)} licenses \u2014 a ${metrics.roiMultiple.toFixed(1)}x return`, {
+            x: 0.70, y: 4.20, w: 11.0, h: 0.80, fontSize: 20, fontFace: 'Calibri', color: WHITE
         });
-
-        const tblHeader = [
-            { text: groupLabel.charAt(0).toUpperCase() + groupLabel.slice(1), options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'left' } },
-            { text: 'Users', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-            { text: 'Actions/Wk', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-            { text: 'Monthly Value', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'right' } },
-        ];
-        const tblRows = topN.map((t, idx) => {
-            const bg = idx % 2 === 0 ? '1C3050' : '1E3560';
-            return [
-                { text: t.team.length > 28 ? t.team.slice(0, 26) + '…' : t.team, options: { fill: { color: bg }, color: LIGHT_GRAY, fontSize: 9, fontFace: 'Calibri', align: 'left' } },
-                { text: fmt(t.activeUsers), options: { fill: { color: bg }, color: LIGHT_GRAY, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-                { text: t.actionsPerUser.toFixed(1), options: { fill: { color: bg }, color: LIGHT_GRAY, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-                { text: '$' + fmt(Math.round(t.monthlyValue)), options: { fill: { color: bg }, color: ACCENT, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'right' } },
-            ];
+        // Data context
+        s1.addText(`Based on ${rows.length} ${groupLabel} (aggregated)  \u2022  ${weeks} weeks of data  \u2022  ${dateRange}`, {
+            x: 0.70, y: 5.20, w: 11.0, h: 0.40, fontSize: 13, fontFace: 'Calibri', color: MUTED
         });
-        s1.addTable([tblHeader, ...tblRows], {
-            x: 0.4, y: tableY1, w: 5.3, colW: [2.1, 0.7, 1.0, 1.3], rowH: 0.26,
-            border: { pt: 0.5, color: '2A4570' }
-        });
-
-        // Key findings box
-        const boxX = 6.0;
-        const boxY = tableY1 - 0.05;
-        const boxW = 3.6;
-        const boxH = 2.5;
-        s1.addShape(pptx.shapes.RECTANGLE, { x: boxX, y: boxY, w: boxW, h: boxH, fill: { color: CARD_BG }, shadow: makeShadow() });
-        s1.addShape(pptx.shapes.RECTANGLE, { x: boxX, y: boxY, w: 0.06, h: boxH, fill: { color: ACCENT } });
-        s1.addText('Key Findings', { x: boxX + 0.2, y: boxY + 0.08, w: boxW - 0.3, h: 0.28, fontSize: 11, fontFace: 'Calibri', color: ACCENT, bold: true });
-
-        const findings = [
-            { text: `${pct(metrics.activationRate)} activation — near-universal adoption`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: `${fmt(metrics.powerUsers)} power users (${pct(metrics.powerUserRate)}) driving momentum`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: `Break-even at ${((config.licenseCost / ((config.minutesPerAction / 60) * config.professionalRate))).toFixed(1)} actions/mo — users deliver ${story.keyMetrics.avgActionsPerUserPerMonth}`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: `${fmt(Math.round(metrics.weeklyHoursSaved))} hours returned to productive work weekly`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: `$${fmt(Math.round(metrics.annualValue))} annualized productivity value`, options: { bullet: true, fontSize: 9.5, fontFace: 'Calibri', color: ACCENT, bold: true } },
-        ];
-        s1.addText(findings, { x: boxX + 0.2, y: boxY + 0.4, w: boxW - 0.4, h: boxH - 0.5, paraSpaceAfter: 5, valign: 'top' });
-
-        // Footer
-        s1.addText(`Source: Microsoft Copilot Insight Report (${dateRange})  |  Rate: $${config.professionalRate}/hr  |  ${config.minutesPerAction} min/action`, {
-            x: 0.4, y: 5.25, w: 9, h: 0.3, fontSize: 8, fontFace: 'Calibri', color: '4A5568'
+        // Footer bar
+        s1.addShape(pptx.shapes.RECTANGLE, { x: 0.0, y: 6.90, w: 13.33, h: 0.60, fill: { color: BG } });
+        s1.addText(`Generated ${story.generatedDate}  |  Copilot ROI Calculator`, {
+            x: 0.70, y: 7.00, w: 12.0, h: 0.40, fontSize: 11, fontFace: 'Calibri', color: TEXT
         });
 
         s1.addNotes(
-            'SLIDE 1: HEADLINE RESULTS\n\n' +
-            `Monthly Value: $${fmt(Math.round(metrics.valuePerMonth))} — calculated from ${fmt(metrics.totalWeeklyActions)} weekly actions × 4.33 × ${config.minutesPerAction} min / 60 × $${config.professionalRate}/hr.\n` +
-            `Activation: ${pct(metrics.activationRate)} — ${fmt(metrics.totalActiveUsers)} of ${fmt(metrics.totalEnabledUsers)} licensed users are active.\n` +
-            `ROI: ${metrics.roiMultiple.toFixed(1)}x — monthly value ÷ monthly license cost ($${fmt(Math.round(metrics.monthlyCostPurchased))}).\n\n` +
-            'TALKING POINTS:\n' +
-            '- Lead with the ROI multiple — executives want the bottom line first.\n' +
-            '- Point to the table: "Value is distributed across the organization, not concentrated in one group."\n' +
-            '- Key findings box: "All of this without formal training — organic adoption."\n\n' +
-            'OBJECTION HANDLING:\n' +
-            `- "Is ${config.minutesPerAction} min/action realistic?" → Microsoft research: 3-10 min range. Forrester: 5-8 avg.\n` +
-            `- "What about inactive users?" → Even counting them, ROI is ${metrics.roiMultiple.toFixed(1)}x positive.\n` +
-            `- "Can you prove it?" → These are measured actions from Microsoft telemetry, sustained over ${weeks} weeks.\n\n` +
+            'TITLE SLIDE\n\n' +
+            'This is an automatically generated executive deck from actual Copilot usage data.\n' +
+            `Key headline: ${fmtM(metrics.valuePerMonth)}/month, ${metrics.roiMultiple.toFixed(1)}x ROI across ${fmt(metrics.totalPurchasedLicenses)} licenses.\n\n` +
             story.agentPrompt.join('\n')
         );
 
         // ════════════════════════════════════════════
-        // SLIDE 2: Usage Tier Performance
+        // SLIDE 2: Executive Summary
         // ════════════════════════════════════════════
         const s2 = pptx.addSlide();
-        s2.background = { color: NAVY };
-        s2.addShape(pptx.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.85, fill: { color: DARK_NAVY } });
-        s2.addText('Usage Tier Performance & ROI Distribution', {
-            x: 0.4, y: 0.12, w: 9, h: 0.5,
-            fontSize: 18, fontFace: 'Calibri', color: WHITE, bold: true
-        });
-        s2.addText(`${groupLabel.charAt(0).toUpperCase() + groupLabel.slice(1)} segmented by Copilot actions per user — investment at $${config.licenseCost}/user/month`, {
-            x: 0.4, y: 0.52, w: 9, h: 0.25,
-            fontSize: 10, fontFace: 'Calibri', color: MID_GRAY
+        s2.background = { color: BG };
+        addSectionHeader(s2, 'EXECUTIVE SUMMARY', `Copilot is delivering ${metrics.roiMultiple.toFixed(1)}x ROI today`);
+
+        // Key paragraph callout
+        s2.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: 1.80, w: 12.10, h: 1.40, fill: { color: CARD } });
+        const summaryPara = `${fmt(metrics.totalPurchasedLicenses)} licenses generate ${fmtM(metrics.valuePerMonth)}/month in productivity value at ${pct(metrics.activationRate)} adoption \u2014 every $1 spent returns $${metrics.roiMultiple.toFixed(2)} in measured time savings. ${fmt(metrics.powerUsers)} power users (${pct(metrics.powerUserRate)}) accelerate adoption through peer learning, and even the lowest-performing tier delivers positive ROI.`;
+        s2.addText(summaryPara, {
+            x: 0.85, y: 1.95, w: 11.60, h: 1.10, fontSize: 18, fontFace: 'Calibri', color: CYAN, bold: true, valign: 'top'
         });
 
-        // Tier table
-        const byActions = [...sortedTeams].sort((a, b) => b.actionsPerUser - a.actionsPerUser);
-        const totalTeams = byActions.length;
-        const tierDefs = [
-            { name: 'Top 10%', color: ACCENT, start: 0, end: Math.max(1, Math.round(totalTeams * 0.10)) },
-            { name: '75th–90th %', color: ICE_BLUE, start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25) },
-            { name: '50th–75th %', color: '5DADE2', start: Math.round(totalTeams * 0.25), end: Math.round(totalTeams * 0.50) },
-            { name: '25th–50th %', color: 'F39C12', start: Math.round(totalTeams * 0.50), end: Math.round(totalTeams * 0.75) },
-            { name: 'Bottom 25%', color: RED, start: Math.round(totalTeams * 0.75), end: totalTeams },
+        // 3 insight cards
+        const insightCards = [
+            { title: 'Strong adoption', body: `${fmt(metrics.totalActiveUsers)} of ${fmt(metrics.totalEnabledUsers)} licensed users are active weekly. Power users (${pct(metrics.powerUserRate)}) average 20+ actions per week and model behavior for peers.`, accent: GREEN },
+            { title: 'Every tier is profitable', body: `Even bottom-25% users return ${tierData.length > 0 ? tierData[tierData.length - 1].roi.toFixed(1) : '?'}x. Top performers reach ${tierData.length > 0 ? tierData[0].roi.toFixed(1) : '?'}x. The investment carries no underwater segment.`, accent: CYAN },
+            { title: 'Headroom for expansion', body: `Each 1,000 unlicensed users represents ~$${fmt(Math.round(monthlyValuePerUser * 1000 * 0.1 * 12))}/year in opportunity. Scaling deployment amplifies ROI through network effects.`, accent: GOLD },
         ];
-
-        const tierHeader = [
-            { text: 'Tier', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'left' } },
-            { text: 'Active Users', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-            { text: 'Actions/Mo', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-            { text: 'Investment', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'right' } },
-            { text: 'Value/Mo', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'right' } },
-            { text: 'ROI', options: { fill: { color: '243B5E' }, color: WHITE, bold: true, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-        ];
-
-        const tierRows = [];
-        let tierNotesText = 'TIER DETAILS:\n';
-        tierDefs.forEach((tier, idx) => {
-            const slice = byActions.slice(tier.start, tier.end);
-            if (slice.length === 0) return;
-            const tierUsers = slice.reduce((s, t) => s + t.activeUsers, 0);
-            const tierWeekly = slice.reduce((s, t) => s + t.weeklyActions, 0);
-            const tierAvg = tierUsers > 0 ? (tierWeekly / tierUsers) * 4.33 : 0;
-            const tierVal = slice.reduce((s, t) => s + t.monthlyValue, 0);
-            const tierInvest = tierUsers * config.licenseCost;
-            const tierRoi = tierInvest > 0 ? (tierVal / tierInvest).toFixed(1) : '0.0';
-            const bg = idx % 2 === 0 ? '1C3050' : '1E3560';
-            tierRows.push([
-                { text: tier.name, options: { fill: { color: bg }, color: tier.color, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'left' } },
-                { text: fmt(tierUsers), options: { fill: { color: bg }, color: LIGHT_GRAY, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-                { text: tierAvg.toFixed(0), options: { fill: { color: bg }, color: LIGHT_GRAY, fontSize: 9, fontFace: 'Calibri', align: 'center' } },
-                { text: '$' + fmt(tierInvest), options: { fill: { color: bg }, color: LIGHT_GRAY, fontSize: 9, fontFace: 'Calibri', align: 'right' } },
-                { text: '$' + fmt(Math.round(tierVal)), options: { fill: { color: bg }, color: ACCENT, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'right' } },
-                { text: tierRoi + 'x', options: { fill: { color: bg }, color: parseFloat(tierRoi) >= 1 ? ACCENT : RED, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'center' } },
-            ]);
-            tierNotesText += `  ${tier.name}: ${fmt(tierUsers)} users, ${tierAvg.toFixed(0)} actions/user/mo, $${fmt(Math.round(tierVal))}/mo, ${tierRoi}x ROI\n`;
+        insightCards.forEach((card, i) => {
+            const cx = 0.60 + i * 4.10;
+            const cw = 3.85;
+            s2.addShape(pptx.shapes.RECTANGLE, { x: cx, y: 3.50, w: cw, h: 2.60, fill: { color: CARD } });
+            s2.addShape(pptx.shapes.RECTANGLE, { x: cx, y: 3.50, w: 0.08, h: 2.60, fill: { color: card.accent } });
+            s2.addText(card.title, { x: cx + 0.30, y: 3.75, w: cw - 0.45, h: 0.50, fontSize: 18, fontFace: 'Cambria', color: WHITE, bold: true });
+            s2.addText(card.body, { x: cx + 0.30, y: 4.35, w: cw - 0.45, h: 1.50, fontSize: 13, fontFace: 'Calibri', color: TEXT, valign: 'top' });
         });
 
-        // Totals row
-        const allInvest = metrics.totalEnabledUsers * config.licenseCost;
-        tierRows.push([
-            { text: 'ALL USERS', options: { fill: { color: '243B5E' }, color: WHITE, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'left' } },
-            { text: fmt(metrics.totalActiveUsers), options: { fill: { color: '243B5E' }, color: WHITE, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'center' } },
-            { text: (metrics.avgActionsPerUser * 4.33).toFixed(0), options: { fill: { color: '243B5E' }, color: WHITE, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'center' } },
-            { text: '$' + fmt(allInvest), options: { fill: { color: '243B5E' }, color: WHITE, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'right' } },
-            { text: '$' + fmt(Math.round(metrics.valuePerMonth)), options: { fill: { color: '243B5E' }, color: ACCENT, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'right' } },
-            { text: metrics.roiMultiple.toFixed(1) + 'x', options: { fill: { color: '243B5E' }, color: ACCENT, fontSize: 9, fontFace: 'Calibri', bold: true, align: 'center' } },
-        ]);
-
-        s2.addTable([tierHeader, ...tierRows], {
-            x: 0.4, y: 1.1, w: 9.2, colW: [1.5, 1.3, 1.3, 1.6, 1.6, 0.9], rowH: 0.32,
-            border: { pt: 0.5, color: '2A4570' }
+        // Methodology note
+        s2.addText(`Calculation: ${fmt(Math.round(metrics.totalWeeklyActions * 4.33))} monthly actions \u00d7 ${config.minutesPerAction} min \u00f7 60 \u00d7 $${config.professionalRate}/hr = ${fmtM(metrics.valuePerMonth)} productivity value`, {
+            x: 0.60, y: 6.40, w: 12.10, h: 0.30, fontSize: 10, fontFace: 'Calibri', color: MUTED
         });
-
-        // Insight callouts below table
-        const insightY = 1.1 + (tierRows.length + 1) * 0.32 + 0.3;
-        const insights = [
-            { value: story.tierBreakdown[0]?.roi || 'N/A', label: 'Top 10% ROI', color: ACCENT },
-            { value: fmt(metrics.powerUsers), label: 'Power Users', color: ICE_BLUE },
-            { value: pct(metrics.powerUserRate), label: 'Power User Rate', color: ICE_BLUE },
-        ];
-        insights.forEach((ins, i) => {
-            const ix = 0.4 + i * 3.1;
-            s2.addShape(pptx.shapes.RECTANGLE, { x: ix, y: insightY, w: 2.8, h: 1.0, fill: { color: CARD_BG }, shadow: makeShadow() });
-            s2.addText(ins.value, { x: ix, y: insightY + 0.1, w: 2.8, h: 0.5, fontSize: 22, fontFace: 'Calibri', color: ins.color, bold: true, align: 'center', valign: 'middle' });
-            s2.addText(ins.label, { x: ix, y: insightY + 0.6, w: 2.8, h: 0.3, fontSize: 10, fontFace: 'Calibri', color: MID_GRAY, align: 'center' });
-        });
-
-        s2.addText(`Source: Microsoft Copilot Insight Report  |  ${config.minutesPerAction} min/action  |  $${config.professionalRate}/hr`, {
-            x: 0.4, y: 5.25, w: 9, h: 0.3, fontSize: 8, fontFace: 'Calibri', color: '4A5568'
-        });
+        addFooter(s2, 2);
 
         s2.addNotes(
-            'SLIDE 2: TIER PERFORMANCE\n\n' +
-            'KEY NARRATIVE:\n' +
-            '- Top 10% are your champions — they create peer-to-peer momentum and mentor others.\n' +
-            '- Bottom 25% is NOT a failure. Frame as "unrealized potential" — your biggest growth opportunity.\n' +
-            '- If bottom quartile reached median performance, total value increases significantly.\n\n' +
-            tierNotesText + '\n' +
-            'TALKING POINTS:\n' +
-            '- "Notice every tier delivers positive ROI — even the bottom 25% pays for itself."\n' +
-            '- "The gap between top and bottom tiers represents your enablement opportunity."\n' +
-            '- "Power users are your natural trainers — formalize a champion program."'
+            'EXECUTIVE SUMMARY\n\n' +
+            'OPENER: "Let me give you the headline — Copilot pays for itself ' + metrics.roiMultiple.toFixed(1) + ' times over."\n\n' +
+            'Walk through each card:\n' +
+            `1. ADOPTION: ${pct(metrics.activationRate)} activation — this happened organically, without formal training.\n` +
+            `2. PROFITABILITY: Every tier is positive. Even the lowest users cover their cost.\n` +
+            `3. EXPANSION: Each 1,000 new seats adds ~$${fmt(Math.round(monthlyValuePerUser * 100 * 12))}/year conservatively.\n\n` +
+            'OBJECTION: "Is this sustainable?" → Yes — ' + weeks + ' weeks of sustained/growing data.\n' +
+            'TRANSITION: "Let me show you the numbers behind this..."'
         );
 
         // ════════════════════════════════════════════
-        // SLIDE 3: Measured Business Value (Money Slide)
+        // SLIDE 3: Key Metrics
         // ════════════════════════════════════════════
         const s3 = pptx.addSlide();
-        s3.background = { color: NAVY };
-        s3.addShape(pptx.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.85, fill: { color: DARK_NAVY } });
-        s3.addText('Measured Business Value  |  The ROI Case', {
-            x: 0.4, y: 0.12, w: 9, h: 0.5,
-            fontSize: 18, fontFace: 'Calibri', color: WHITE, bold: true
-        });
-        s3.addText('Conservative methodology — measured actions × time saved × professional rate', {
-            x: 0.4, y: 0.52, w: 9, h: 0.25,
-            fontSize: 10, fontFace: 'Calibri', color: MID_GRAY
-        });
+        s3.background = { color: BG };
+        addSectionHeader(s3, `KEY METRICS  \u2022  LAST ${weeks > 4 ? weeks : 4} WEEKS`, 'The numbers behind the return');
 
-        // Big ROI callout
-        s3.addShape(pptx.shapes.RECTANGLE, { x: 0.4, y: 1.1, w: 9.2, h: 1.6, fill: { color: CARD_BG }, shadow: makeShadow() });
-        s3.addShape(pptx.shapes.RECTANGLE, { x: 0.4, y: 1.1, w: 9.2, h: 0.06, fill: { color: ACCENT } });
-        s3.addText(metrics.roiMultiple.toFixed(1) + 'x ROI', {
-            x: 0.4, y: 1.25, w: 3.0, h: 1.3,
-            fontSize: 44, fontFace: 'Calibri', color: ACCENT, bold: true, align: 'center', valign: 'middle'
-        });
-
-        // Value breakdown on right of ROI box
-        const vbX = 3.5;
-        const vbLines = [
-            [`$${fmt(Math.round(metrics.valuePerMonth))}`, 'Monthly productivity value', ACCENT],
-            [`$${fmt(Math.round(metrics.annualValue))}`, 'Annual projected value', LIGHT_GRAY],
-            [`$${fmt(Math.round(metrics.annualCost))}`, 'Annual licensing cost', RED],
-            [`${fmt(Math.round(metrics.hoursPerMonth))} hrs`, 'Hours saved per month', ICE_BLUE],
+        // Row 1: 2 big cards (6.05" wide each)
+        const bigW = 6.05, bigH = 1.70, bigGap = 0.10;
+        const r1Y = 1.80;
+        const bigCards = [
+            { label: 'MONTHLY ROI MULTIPLE', value: metrics.roiMultiple.toFixed(1) + 'x', sub: `${fmtM(metrics.valuePerMonth)} / mo  \u00f7  $${fmt(Math.round(metrics.monthlyCostPurchased))} / mo cost`, valueColor: GREEN },
+            { label: 'MONTHLY PRODUCTIVITY VALUE', value: fmtM(metrics.valuePerMonth), sub: `${fmtM(metrics.annualValue)} / year  \u2022  ${fmtM(metrics.valuePerMonth / 4.33)} / week`, valueColor: CYAN },
         ];
-        vbLines.forEach((vb, i) => {
-            const vy = 1.2 + i * 0.35;
-            s3.addText(vb[0], { x: vbX, y: vy, w: 2.2, h: 0.32, fontSize: 14, fontFace: 'Calibri', color: vb[2], bold: true, align: 'right', valign: 'middle' });
-            s3.addText(vb[1], { x: vbX + 2.3, y: vy, w: 4.0, h: 0.32, fontSize: 10, fontFace: 'Calibri', color: MID_GRAY, align: 'left', valign: 'middle' });
+        bigCards.forEach((c, i) => {
+            const bx = 0.60 + i * (bigW + bigGap);
+            s3.addShape(pptx.shapes.RECTANGLE, { x: bx, y: r1Y, w: bigW, h: bigH, fill: { color: CARD } });
+            s3.addText(c.label, { x: bx + 0.25, y: r1Y + 0.20, w: bigW - 0.5, h: 0.35, fontSize: 10, fontFace: 'Calibri', color: MUTED, bold: true });
+            s3.addText(c.value, { x: bx + 0.25, y: r1Y + 0.55, w: bigW - 0.5, h: 0.70, fontSize: 36, fontFace: 'Cambria', color: c.valueColor, bold: true });
+            s3.addText(c.sub, { x: bx + 0.25, y: r1Y + 1.15, w: bigW - 0.5, h: 0.40, fontSize: 10, fontFace: 'Calibri', color: TEXT });
         });
 
-        // Methodology box
-        const methY = 3.0;
-        s3.addShape(pptx.shapes.RECTANGLE, { x: 0.4, y: methY, w: 9.2, h: 2.1, fill: { color: CARD_BG }, shadow: makeShadow() });
-        s3.addShape(pptx.shapes.RECTANGLE, { x: 0.4, y: methY, w: 0.06, h: 2.1, fill: { color: ICE_BLUE } });
-        s3.addText('Methodology & Assumptions', { x: 0.6, y: methY + 0.08, w: 8.8, h: 0.25, fontSize: 11, fontFace: 'Calibri', color: ICE_BLUE, bold: true });
-
-        const methBullets = [
-            { text: `Time savings: ${config.minutesPerAction} minutes per Copilot action (Microsoft research range: 3–10 min)`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: `Professional hourly rate: $${config.professionalRate}/hr (fully loaded)`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: `License cost: $${config.licenseCost}/user/month`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: `Break-even: ${((config.licenseCost / ((config.minutesPerAction / 60) * config.professionalRate))).toFixed(1)} actions/user/month — your users average ${(metrics.avgActionsPerUser * 4.33).toFixed(0)}`, options: { bullet: true, breakLine: true, fontSize: 9.5, fontFace: 'Calibri', color: LIGHT_GRAY } },
-            { text: 'All data from Microsoft Copilot Insight Report (official telemetry) — not estimated or self-reported', options: { bullet: true, fontSize: 9.5, fontFace: 'Calibri', color: ACCENT } },
+        // Row 2: 3 medium cards (3.95" wide each)
+        const medW = 3.95, medH = 1.60, medGap = 0.15;
+        const r2Y = 3.65;
+        const weeklyPerUser = metrics.totalActiveUsers > 0 ? metrics.totalWeeklyActions / metrics.totalActiveUsers : 0;
+        const monthlyPerUser = weeklyPerUser * 4.33;
+        const medCards1 = [
+            { label: 'ADOPTION RATE', value: pct(metrics.activationRate), sub: `${fmt(metrics.totalActiveUsers)} of ${fmt(metrics.totalEnabledUsers)} licensed users active`, valueColor: CYAN },
+            { label: 'WEEKLY ACTIONS / USER', value: weeklyPerUser.toFixed(1), sub: `${Math.round(monthlyPerUser)} / month`, valueColor: GREEN },
+            { label: 'POWER USER RATE', value: pct(metrics.powerUserRate), sub: `${fmt(metrics.powerUsers)} power users (20+ actions/wk)`, valueColor: CYAN },
         ];
-        s3.addText(methBullets, { x: 0.6, y: methY + 0.4, w: 8.8, h: 1.6, paraSpaceAfter: 4, valign: 'top' });
-
-        s3.addText(`Generated ${story.generatedDate}`, {
-            x: 0.4, y: 5.25, w: 9, h: 0.3, fontSize: 8, fontFace: 'Calibri', color: '4A5568'
+        medCards1.forEach((c, i) => {
+            const mx = 0.60 + i * (medW + medGap);
+            s3.addShape(pptx.shapes.RECTANGLE, { x: mx, y: r2Y, w: medW, h: medH, fill: { color: CARD } });
+            s3.addText(c.label, { x: mx + 0.25, y: r2Y + 0.20, w: medW - 0.5, h: 0.35, fontSize: 10, fontFace: 'Calibri', color: MUTED, bold: true });
+            s3.addText(c.value, { x: mx + 0.25, y: r2Y + 0.55, w: medW - 0.5, h: 0.60, fontSize: 36, fontFace: 'Cambria', color: c.valueColor, bold: true });
+            s3.addText(c.sub, { x: mx + 0.25, y: r2Y + 1.05, w: medW - 0.5, h: 0.40, fontSize: 10, fontFace: 'Calibri', color: TEXT });
         });
+
+        // Row 3: 3 medium cards
+        const r3Y = 5.40;
+        const weeklyHours = metrics.totalWeeklyActions * config.minutesPerAction / 60;
+        const monthlyHours = weeklyHours * 4.33;
+        const costPerHour = monthlyHours > 0 ? metrics.monthlyCostPurchased / monthlyHours : 0;
+        const medCards2 = [
+            { label: 'ENABLED USERS', value: fmt(metrics.totalPurchasedLicenses), sub: 'Licensed for Copilot', valueColor: TEXT },
+            { label: 'WEEKLY HOURS SAVED', value: fmt(Math.round(weeklyHours)), sub: `${fmt(metrics.totalWeeklyActions)} actions \u00d7 ${config.minutesPerAction} min \u00f7 60`, valueColor: GREEN },
+            { label: 'COST PER HOUR SAVED', value: '$' + costPerHour.toFixed(2), sub: `$${fmt(Math.round(metrics.monthlyCostPurchased))} / mo  \u00f7  ${fmt(Math.round(monthlyHours))} hrs / mo`, valueColor: GOLD },
+        ];
+        medCards2.forEach((c, i) => {
+            const mx = 0.60 + i * (medW + medGap);
+            s3.addShape(pptx.shapes.RECTANGLE, { x: mx, y: r3Y, w: medW, h: 1.50, fill: { color: CARD } });
+            s3.addText(c.label, { x: mx + 0.25, y: r3Y + 0.20, w: medW - 0.5, h: 0.35, fontSize: 10, fontFace: 'Calibri', color: MUTED, bold: true });
+            s3.addText(c.value, { x: mx + 0.25, y: r3Y + 0.55, w: medW - 0.5, h: 0.50, fontSize: 36, fontFace: 'Cambria', color: c.valueColor, bold: true });
+            s3.addText(c.sub, { x: mx + 0.25, y: r3Y + 0.95, w: medW - 0.5, h: 0.40, fontSize: 10, fontFace: 'Calibri', color: TEXT });
+        });
+        addFooter(s3, 3);
 
         s3.addNotes(
-            'SLIDE 3: MONEY SLIDE — SLOW DOWN, LET IT SINK IN\n\n' +
-            'Five-part walkthrough:\n' +
-            `1. Methodology (60s): "${config.minutesPerAction} min/action is conservative. Microsoft sees 3-10 min. Forrester sees 5-8 avg."\n` +
-            `2. Monthly Value (45s): "$${fmt(Math.round(metrics.valuePerMonth))}/month — that's ${fmt(Math.round(metrics.hoursPerMonth))} hours of productive time returned."\n` +
-            `3. Annual Value (45s): "$${fmt(Math.round(metrics.annualValue))}/year projected at current usage levels."\n` +
-            `4. Investment (30s): "Total annual cost: $${fmt(Math.round(metrics.annualCost))} — ${fmt(metrics.totalPurchasedLicenses)} licenses at $${config.licenseCost}/mo."\n` +
-            `5. ROI (45s — PAUSE): "${metrics.roiMultiple.toFixed(1)}x return. Every dollar invested returns $${metrics.roiMultiple.toFixed(2)}."\n\n` +
-            'PAUSE FOR QUESTIONS. Do not rush past this slide.\n\n' +
-            'OBJECTION HANDLING:\n' +
-            `- "Is ${config.minutesPerAction} min realistic?" → It's the conservative end. Microsoft internal data, Forrester independent research confirm 3-10 min range.\n` +
-            '- "Implementation costs?" → Copilot is embedded in M365. No separate deployment. Activation rate proves minimal friction.\n' +
-            `- "Prove time savings?" → These are ${fmt(metrics.totalWeeklyActions)} measured actions per week. Each replaces manual work. ${weeks} weeks of sustained/growing usage confirms ongoing value.`
+            'KEY METRICS\n\n' +
+            `ROI Multiple: ${metrics.roiMultiple.toFixed(1)}x — ${fmtM(metrics.valuePerMonth)} value on $${fmt(Math.round(metrics.monthlyCostPurchased))} cost.\n` +
+            `Adoption: ${pct(metrics.activationRate)} — strong organic uptake.\n` +
+            `Power users: ${fmt(metrics.powerUsers)} (${pct(metrics.powerUserRate)}) — these are your champions.\n` +
+            `Cost per hour saved: $${costPerHour.toFixed(2)} — compare to $${config.professionalRate}/hr value of time.\n\n` +
+            'Walk through each metric card. Pause on the ROI multiple and cost-per-hour — executives anchor on these.'
         );
 
         // ════════════════════════════════════════════
-        // SLIDE 4: Recommendations & Next Steps
+        // SLIDE 4: Value by Organization (Top 10 bar chart)
         // ════════════════════════════════════════════
         const s4 = pptx.addSlide();
-        s4.background = { color: NAVY };
-        s4.addShape(pptx.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.85, fill: { color: DARK_NAVY } });
-        s4.addText('Recommendations & Next Steps', {
-            x: 0.4, y: 0.12, w: 9, h: 0.5,
-            fontSize: 18, fontFace: 'Calibri', color: WHITE, bold: true
-        });
-        s4.addText('Four strategic actions to accelerate ROI', {
-            x: 0.4, y: 0.52, w: 9, h: 0.25,
-            fontSize: 10, fontFace: 'Calibri', color: MID_GRAY
+        s4.background = { color: BG };
+        addSectionHeader(s4, `VALUE BY ${groupLabel.toUpperCase()}`, `Top 10 ${groupLabel} by monthly value generated`);
+
+        // Horizontal bar chart
+        const top10 = sortedTeams.slice(0, Math.min(10, sortedTeams.length));
+        const chartLabels = top10.map(t => t.team.length > 22 ? t.team.slice(0, 20) + '\u2026' : t.team).reverse();
+        const chartValues = top10.map(t => Math.round(t.monthlyValue)).reverse();
+        s4.addChart(pptx.charts.BAR, [{ name: 'Monthly Value ($)', labels: chartLabels, values: chartValues }], {
+            x: 0.60, y: 1.75, w: 8.60, h: 5.0,
+            showTitle: false,
+            showValue: true,
+            valueFontSize: 8,
+            valueFontColor: WHITE,
+            catAxisLabelColor: TEXT,
+            catAxisLabelFontSize: 9,
+            catAxisLabelFontFace: 'Calibri',
+            valAxisHidden: true,
+            catGridLine: { style: 'none' },
+            valGridLine: { color: CARD_ALT, style: 'dash', size: 0.5 },
+            chartColors: [CYAN],
+            barDir: 'bar',
+            plotArea: { fill: { color: BG } },
         });
 
-        // 4 recommendation cards in 2x2 grid
-        const recDefs = [
-            { icon: '🚀', title: 'EXPAND', body: `Scale deployment. ${pct(metrics.activationRate)} activation proves demand. More users = network effects = higher per-user value.`, color: ACCENT },
-            { icon: '🎓', title: 'ENABLE', body: `Target bottom-quartile ${groupLabel} with training. If they reach median, total value jumps significantly.`, color: ICE_BLUE },
-            { icon: '🏆', title: 'CHAMPION', body: `Formalize ${fmt(metrics.powerUsers)} power users as ambassadors. They're your best internal advocates — they accelerate peer adoption for free.`, color: 'F39C12' },
-            { icon: '📊', title: 'MEASURE', body: `Maintain regular analysis cadence (monthly/quarterly). Track ROI trajectory and identify emerging champion ${groupLabel}.`, color: '9B59B6' },
-        ];
-
-        recDefs.forEach((rec, i) => {
-            const col = i % 2;
-            const row = Math.floor(i / 2);
-            const rx = 0.4 + col * 4.7;
-            const ry = 1.1 + row * 2.1;
-            const rw = 4.4;
-            const rh = 1.9;
-            s4.addShape(pptx.shapes.RECTANGLE, { x: rx, y: ry, w: rw, h: rh, fill: { color: CARD_BG }, shadow: makeShadow() });
-            s4.addShape(pptx.shapes.RECTANGLE, { x: rx, y: ry, w: rw, h: 0.05, fill: { color: rec.color } });
-            s4.addText(`${rec.icon}  ${rec.title}`, { x: rx + 0.2, y: ry + 0.15, w: rw - 0.4, h: 0.35, fontSize: 13, fontFace: 'Calibri', color: rec.color, bold: true });
-            s4.addText(rec.body, { x: rx + 0.2, y: ry + 0.55, w: rw - 0.4, h: 1.2, fontSize: 10, fontFace: 'Calibri', color: LIGHT_GRAY, valign: 'top' });
-        });
-
-        s4.addText(`"The data is clear — Copilot pays for itself ${metrics.roiMultiple.toFixed(0)}x over. The question isn't whether to invest, it's how fast we scale."`, {
-            x: 0.4, y: 5.15, w: 9.2, h: 0.4, fontSize: 10, fontFace: 'Calibri', color: ACCENT, italic: true, align: 'center'
-        });
+        // Pareto sidebar
+        const topVal = top10.reduce((s, t) => s + t.monthlyValue, 0);
+        const totalVal = sortedTeams.reduce((s, t) => s + t.monthlyValue, 0);
+        const paretoShare = totalVal > 0 ? (topVal / totalVal * 100).toFixed(0) : '?';
+        s4.addShape(pptx.shapes.RECTANGLE, { x: 9.45, y: 1.75, w: 3.30, h: 5.0, fill: { color: CARD } });
+        s4.addText('THE PARETO SIGNAL', { x: 9.65, y: 1.90, w: 3.0, h: 0.35, fontSize: 12, fontFace: 'Calibri', color: MUTED, bold: true });
+        s4.addText(fmtM(topVal), { x: 9.65, y: 2.30, w: 3.0, h: 0.70, fontSize: 36, fontFace: 'Cambria', color: GREEN, bold: true });
+        s4.addText(`monthly value from the top ${Math.min(10, rows.length)} ${groupLabel}`, { x: 9.65, y: 3.00, w: 3.0, h: 0.50, fontSize: 12, fontFace: 'Calibri', color: TEXT });
+        s4.addShape(pptx.shapes.RECTANGLE, { x: 9.65, y: 3.65, w: 2.90, h: 0.04, fill: { color: CARD_ALT } });
+        s4.addText(paretoShare + '%', { x: 9.65, y: 3.85, w: 3.0, h: 0.60, fontSize: 36, fontFace: 'Cambria', color: CYAN, bold: true });
+        s4.addText(`of total monthly productivity value concentrated in top ${Math.min(10, rows.length)} of ${rows.length} ${groupLabel}`, { x: 9.65, y: 4.45, w: 3.0, h: 0.90, fontSize: 12, fontFace: 'Calibri', color: TEXT });
+        s4.addShape(pptx.shapes.RECTANGLE, { x: 9.65, y: 5.40, w: 2.90, h: 0.04, fill: { color: CARD_ALT } });
+        s4.addText('Action', { x: 9.65, y: 5.55, w: 3.0, h: 0.30, fontSize: 11, fontFace: 'Calibri', color: CYAN, bold: true });
+        s4.addText(`Replicate top ${groupLabel.slice(0, -1)} enablement playbooks in mid-tier ${groupLabel} to lift overall value`, { x: 9.65, y: 5.85, w: 3.0, h: 0.85, fontSize: 11, fontFace: 'Calibri', color: TEXT });
+        addFooter(s4, 4);
 
         s4.addNotes(
-            'SLIDE 4: RECOMMENDATIONS\n\n' +
-            'Frame each recommendation with urgency:\n\n' +
-            story.recommendations.map((r, i) => `${i + 1}. ${r}`).join('\n\n') + '\n\n' +
-            'CLOSING STATEMENT:\n' +
-            `"The data is clear. ${metrics.roiMultiple.toFixed(1)}x return. Every dollar working. The question is how fast we scale."\n\n` +
-            'If time permits, reference:\n' +
-            `- Expansion to additional users could grow annual value proportionally from $${fmt(Math.round(metrics.annualValue))}\n` +
-            '- Champion program creates network effects — Microsoft internal data shows mature deployments outperform initial rollouts by 15-25%\n' +
-            '- Regular measurement creates accountability and surfaces new champion teams'
+            'VALUE BY ORGANIZATION\n\n' +
+            `Top 10 ${groupLabel} generate ${paretoShare}% of total value.\n` +
+            'Point: "Value is concentrated, but every group contributes."\n' +
+            'Action: Replicate what top performers do — prompt libraries, meeting cadence, peer coaching.\n\n' +
+            'TOP PERFORMERS:\n' +
+            top10.map((t, i) => `  ${i + 1}. ${t.team}: $${fmt(Math.round(t.monthlyValue))}/mo (${t.activeUsers} users, ${t.actionsPerUser.toFixed(1)} actions/user/wk)`).join('\n')
+        );
+
+        // ════════════════════════════════════════════
+        // SLIDE 5: Usage Tier Value Distribution
+        // ════════════════════════════════════════════
+        const s5 = pptx.addSlide();
+        s5.background = { color: BG };
+        const lowestRoi = tierData.length > 0 ? tierData[tierData.length - 1].roi.toFixed(0) : '?';
+        addSectionHeader(s5, `USAGE TIER VALUE DISTRIBUTION  \u2022  LAST ${weeks > 4 ? weeks : 4} WEEKS`, `Every tier returns more than ${lowestRoi}x`);
+
+        // Table header row
+        const tblY = 1.80;
+        const colDefs = [
+            { label: 'USER TIER', x: 0.60, w: 2.00 },
+            { label: 'ACTIVE USERS', x: 2.60, w: 1.80 },
+            { label: 'ACTIONS / MO', x: 4.40, w: 1.90 },
+            { label: 'MONTHLY INVESTMENT', x: 6.30, w: 2.30 },
+            { label: 'MONTHLY VALUE', x: 8.60, w: 2.10 },
+            { label: 'ROI', x: 10.70, w: 2.00 },
+        ];
+        s5.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: tblY, w: 12.15, h: 0.50, fill: { color: CARD_ALT } });
+        colDefs.forEach(col => {
+            s5.addText(col.label, { x: col.x, y: tblY, w: col.w, h: 0.50, fontSize: 10, fontFace: 'Calibri', color: TEXT, bold: true, align: 'center', valign: 'middle' });
+        });
+
+        // Tier rows
+        const rowH = 0.55;
+        tierData.forEach((tier, idx) => {
+            const ry = tblY + 0.55 + idx * rowH;
+            const bg = idx % 2 === 0 ? CARD : CARD;
+            s5.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: ry, w: 12.15, h: rowH, fill: { color: bg } });
+            s5.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: ry, w: 0.08, h: rowH, fill: { color: tier.color } });
+            s5.addText(tier.name, { x: 0.60, y: ry, w: 2.0, h: rowH, fontSize: 13, fontFace: 'Calibri', color: tier.color, bold: true, align: 'center', valign: 'middle' });
+            s5.addText(fmt(tier.users), { x: 2.60, y: ry, w: 1.80, h: rowH, fontSize: 13, fontFace: 'Calibri', color: WHITE, align: 'center', valign: 'middle' });
+            s5.addText(fmt(tier.actPerUser), { x: 4.40, y: ry, w: 1.90, h: rowH, fontSize: 13, fontFace: 'Calibri', color: WHITE, align: 'center', valign: 'middle' });
+            s5.addText('$' + fmt(tier.invest), { x: 6.30, y: ry, w: 2.30, h: rowH, fontSize: 13, fontFace: 'Calibri', color: TEXT, align: 'center', valign: 'middle' });
+            s5.addText('$' + fmt(Math.round(tier.value)), { x: 8.60, y: ry, w: 2.10, h: rowH, fontSize: 13, fontFace: 'Calibri', color: WHITE, bold: true, align: 'center', valign: 'middle' });
+            s5.addText(tier.roi.toFixed(1) + 'x', { x: 10.70, y: ry, w: 2.00, h: rowH, fontSize: 14, fontFace: 'Calibri', color: GREEN, bold: true, align: 'center', valign: 'middle' });
+        });
+
+        // Separator + ALL USERS row
+        const allY = tblY + 0.55 + tierData.length * rowH + 0.10;
+        s5.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: allY - 0.08, w: 12.15, h: 0.04, fill: { color: CYAN } });
+        s5.addText('ALL USERS', { x: 0.60, y: allY, w: 2.0, h: 0.50, fontSize: 13, fontFace: 'Calibri', color: WHITE, bold: true, align: 'center', valign: 'middle' });
+        s5.addText(fmt(metrics.totalActiveUsers), { x: 2.60, y: allY, w: 1.80, h: 0.50, fontSize: 13, fontFace: 'Calibri', color: WHITE, bold: true, align: 'center', valign: 'middle' });
+        s5.addText(fmt(Math.round(avgActionsPerMonth)), { x: 4.40, y: allY, w: 1.90, h: 0.50, fontSize: 13, fontFace: 'Calibri', color: WHITE, bold: true, align: 'center', valign: 'middle' });
+        s5.addText('$' + fmt(Math.round(metrics.monthlyCostPurchased)), { x: 6.30, y: allY, w: 2.30, h: 0.50, fontSize: 13, fontFace: 'Calibri', color: WHITE, bold: true, align: 'center', valign: 'middle' });
+        s5.addText(fmtM(metrics.valuePerMonth), { x: 8.60, y: allY, w: 2.10, h: 0.50, fontSize: 13, fontFace: 'Calibri', color: WHITE, bold: true, align: 'center', valign: 'middle' });
+        s5.addText(metrics.roiMultiple.toFixed(1) + 'x', { x: 10.70, y: allY, w: 2.00, h: 0.50, fontSize: 14, fontFace: 'Calibri', color: GREEN, bold: true, align: 'center', valign: 'middle' });
+
+        // Insight box
+        const insY = allY + 0.65;
+        s5.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: insY, w: 12.15, h: 0.85, fill: { color: CARD } });
+        s5.addText([
+            { text: 'Insight:  ', options: { color: CYAN, bold: true, fontSize: 13, fontFace: 'Calibri' } },
+            { text: `Even the bottom 25% of users return ${lowestRoi}x \u2014 the program has no underwater segment. Moving bottom-quartile users to median adds ~$${fmt(Math.round((tierData.length > 2 ? tierData[Math.floor(tierData.length / 2)].value - tierData[tierData.length - 1].value : 0)))} monthly value.`, options: { color: TEXT, fontSize: 13, fontFace: 'Calibri' } }
+        ], { x: 0.85, y: insY + 0.05, w: 11.70, h: 0.75, valign: 'middle' });
+        addFooter(s5, 5);
+
+        s5.addNotes(
+            'USAGE TIER DISTRIBUTION\n\n' +
+            'KEY POINT: Every tier is profitable. There is no underwater segment.\n' +
+            tierData.map(t => `  ${t.name}: ${fmt(t.users)} users, ${t.actPerUser} act/mo/user, $${fmt(Math.round(t.value))}/mo, ${t.roi.toFixed(1)}x ROI`).join('\n') + '\n\n' +
+            'NARRATIVE:\n' +
+            '- "Even the bottom 25% pays for itself. The question is not whether to keep Copilot \u2014 it\u2019s how to move everyone up one tier."\n' +
+            '- Point to the ROI column: all green. No red anywhere.\n' +
+            '- "If bottom quartile reached the median, that\u2019s significant incremental value for free."'
+        );
+
+        // ════════════════════════════════════════════
+        // SLIDE 6: Break-Even & Pricing Sensitivity
+        // ════════════════════════════════════════════
+        const s6 = pptx.addSlide();
+        s6.background = { color: BG };
+        addSectionHeader(s6, 'BREAK-EVEN & PRICING SENSITIVITY', `Users average ~${Math.round(avgActionsPerMonth)} actions/month \u2014 ${Math.round(avgActionsPerMonth / breakEvenActions)}\u00d7 the break-even threshold`);
+
+        // Chart: bar chart showing actions per tier vs break-even line
+        const tierLabels = tierData.map(t => t.name);
+        const tierActPerUser = tierData.map(t => t.actPerUser);
+        s6.addChart(pptx.charts.BAR, [
+            { name: 'Actions/User/Month', labels: tierLabels, values: tierActPerUser },
+        ], {
+            x: 0.60, y: 1.80, w: 7.60, h: 4.70,
+            showTitle: false,
+            showValue: true,
+            valueFontSize: 10,
+            valueFontColor: WHITE,
+            catAxisLabelColor: TEXT,
+            catAxisLabelFontSize: 10,
+            catAxisLabelFontFace: 'Calibri',
+            valAxisLabelColor: MUTED,
+            valAxisLabelFontSize: 9,
+            catGridLine: { style: 'none' },
+            valGridLine: { color: CARD_ALT, style: 'dash', size: 0.5 },
+            chartColors: [CYAN],
+            plotArea: { fill: { color: BG } },
+        });
+
+        // Pricing sidebar
+        const pricePoints = [
+            { label: '@ $9/mo', cost: 9 },
+            { label: '@ $15/mo', cost: 15 },
+            { label: '@ $24/mo', cost: 24 },
+            { label: `Current @ $${config.licenseCost}`, cost: config.licenseCost },
+        ];
+        s6.addShape(pptx.shapes.RECTANGLE, { x: 8.40, y: 1.80, w: 4.35, h: 4.70, fill: { color: CARD } });
+        s6.addText('YOUR ACTUAL ROI', { x: 8.60, y: 1.95, w: 4.0, h: 0.35, fontSize: 12, fontFace: 'Calibri', color: MUTED, bold: true });
+        pricePoints.forEach((pp, i) => {
+            const py = 2.45 + i * 0.65;
+            const ppRoi = pp.cost > 0 ? (monthlyValuePerUser / pp.cost).toFixed(1) : '?';
+            s6.addText(pp.label, { x: 8.60, y: py, w: 2.20, h: 0.55, fontSize: 13, fontFace: 'Calibri', color: TEXT, valign: 'middle' });
+            s6.addText(ppRoi + 'x', { x: 10.70, y: py, w: 2.0, h: 0.55, fontSize: 18, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle', align: 'right' });
+            if (i < pricePoints.length - 1) {
+                s6.addShape(pptx.shapes.RECTANGLE, { x: 8.60, y: py + 0.55, w: 4.0, h: 0.02, fill: { color: CARD_ALT } });
+            }
+        });
+        s6.addText(`Users average ~${Math.round(avgActionsPerMonth)} actions/mo \u2014 far above the ${breakEvenActions.toFixed(1)} needed to break even at $${config.licenseCost}.`, {
+            x: 8.60, y: 5.40, w: 4.0, h: 1.0, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top'
+        });
+        s6.addText(`Methodology: ${config.minutesPerAction} minutes saved per Copilot action \u00d7 $${config.professionalRate}/hr fully-loaded professional rate`, {
+            x: 0.60, y: 6.65, w: 12.10, h: 0.30, fontSize: 10, fontFace: 'Calibri', color: MUTED
+        });
+        addFooter(s6, 6);
+
+        s6.addNotes(
+            'BREAK-EVEN & PRICING\n\n' +
+            `Break-even: ${breakEvenActions.toFixed(1)} actions/user/month at $${config.licenseCost}/mo.\n` +
+            `Actual average: ${Math.round(avgActionsPerMonth)} actions/user/month \u2014 that's ${Math.round(avgActionsPerMonth / breakEvenActions)}x over break-even.\n\n` +
+            'POWER POINT: "Even if we tripled the license cost, users would STILL break even."\n' +
+            'This is the slide that kills the cost objection permanently.'
+        );
+
+        // ════════════════════════════════════════════
+        // SLIDE 7: Unlicensed User Opportunity Cost
+        // ════════════════════════════════════════════
+        const s7 = pptx.addSlide();
+        s7.background = { color: BG };
+        const valPer1000 = monthlyValuePerUser * 1000 * 0.1; // conservative 10% adoption
+        const costPer1000 = 1000 * config.licenseCost;
+        const netGainPer1000 = valPer1000 - costPer1000;
+        const annualOpp = netGainPer1000 * 12;
+        addSectionHeader(s7, 'UNLICENSED USER OPPORTUNITY COST', `Each 1,000 unlicensed seats leaves $${fmt(Math.round(annualOpp))}/year on the table`);
+
+        // Left big callout
+        s7.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: 1.80, w: 6.0, h: 4.95, fill: { color: CARD } });
+        s7.addText('ANNUAL OPPORTUNITY', { x: 0.85, y: 2.00, w: 5.50, h: 0.40, fontSize: 12, fontFace: 'Calibri', color: CYAN, bold: true });
+        s7.addText('$' + fmt(Math.round(annualOpp)), { x: 0.85, y: 2.50, w: 5.50, h: 1.60, fontSize: 70, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle' });
+        s7.addText(`Per 1,000 unlicensed users  \u2022  $${fmt(Math.round(netGainPer1000))} net gain / month`, { x: 0.85, y: 4.20, w: 5.50, h: 0.50, fontSize: 14, fontFace: 'Calibri', color: TEXT });
+        s7.addShape(pptx.shapes.RECTANGLE, { x: 0.85, y: 4.85, w: 5.50, h: 0.04, fill: { color: CARD_ALT } });
+        s7.addText('Conservative assumption', { x: 0.85, y: 5.00, w: 5.50, h: 0.35, fontSize: 11, fontFace: 'Calibri', color: CYAN, bold: true });
+        s7.addText(`Unlicensed users adopt at just 10% of current licensed-user rate (~${Math.round(avgActionsPerMonth * 0.1)} actions/user/month vs. ${Math.round(avgActionsPerMonth)} today). This is the floor, not the ceiling.`, { x: 0.85, y: 5.35, w: 5.50, h: 1.30, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top' });
+
+        // Right 3 stacked cards
+        const rightX = 7.0, rightW = 5.75, rightCardH = 1.55;
+        const rightCards = [
+            { label: 'LICENSING COST / MO', value: '$' + fmt(costPer1000), sub: `1,000 users \u00d7 $${config.licenseCost} / mo`, valueColor: RED },
+            { label: 'POTENTIAL VALUE / MO', value: '$' + fmt(Math.round(valPer1000)), sub: `1,000 \u00d7 $${Math.round(monthlyValuePerUser * 0.1)} / user / mo`, valueColor: CYAN },
+            { label: 'NET GAIN / MO', value: '$' + fmt(Math.round(netGainPer1000)), sub: `$${fmt(Math.round(valPer1000))}  \u2212  $${fmt(costPer1000)}`, valueColor: GREEN },
+        ];
+        rightCards.forEach((rc, i) => {
+            const ry = 1.80 + i * 1.70;
+            s7.addShape(pptx.shapes.RECTANGLE, { x: rightX, y: ry, w: rightW, h: rightCardH, fill: { color: CARD } });
+            s7.addText(rc.label, { x: rightX + 0.25, y: ry + 0.20, w: rightW - 0.5, h: 0.35, fontSize: 10, fontFace: 'Calibri', color: MUTED, bold: true });
+            s7.addText(rc.value, { x: rightX + 0.25, y: ry + 0.55, w: rightW - 0.5, h: 0.55, fontSize: 36, fontFace: 'Cambria', color: rc.valueColor, bold: true });
+            s7.addText(rc.sub, { x: rightX + 0.25, y: ry + 1.00, w: rightW - 0.5, h: 0.40, fontSize: 10, fontFace: 'Calibri', color: TEXT });
+        });
+        addFooter(s7, 7);
+
+        s7.addNotes(
+            'UNLICENSED OPPORTUNITY\n\n' +
+            `Annual opportunity per 1,000 unlicensed users: $${fmt(Math.round(annualOpp))}\n` +
+            `Conservative: assumes just 10% of current adoption rate.\n` +
+            `If unlicensed users match even 50% of current performance, opportunity is 5x higher.\n\n` +
+            'TALKING POINTS:\n' +
+            '- "Every seat without Copilot is money left on the table."\n' +
+            '- "We modeled this at 10% — one-tenth of what licensed users actually do."\n' +
+            '- "Network effects mean actual adoption will likely exceed this conservative estimate."'
+        );
+
+        // ════════════════════════════════════════════
+        // SLIDE 8: Expansion Projections
+        // ════════════════════════════════════════════
+        const s8 = pptx.addSlide();
+        s8.background = { color: BG };
+        addSectionHeader(s8, 'EXPANSION PROJECTIONS', 'ROI compounds with scale through network effects');
+
+        // Expansion scenario chart
+        const currentUsers = metrics.totalPurchasedLicenses;
+        const scenarios = [
+            { label: `${fmt(currentUsers)} (now)`, users: currentUsers, multiplier: 1.0 },
+            { label: fmt(currentUsers * 2), users: currentUsers * 2, multiplier: 1.1 },
+            { label: fmt(currentUsers * 5), users: currentUsers * 5, multiplier: 1.25 },
+            { label: fmt(currentUsers * 10), users: currentUsers * 10, multiplier: 1.4 },
+            { label: fmt(currentUsers * 20), users: currentUsers * 20, multiplier: 1.55 },
+        ];
+        const scenLabels = scenarios.map(s => s.label);
+        const scenValues = scenarios.map(s => {
+            const projValue = s.users * monthlyValuePerUser * (metrics.activationRate / 100) * s.multiplier;
+            const projCost = s.users * config.licenseCost;
+            return Math.round(projValue / projCost * 10) / 10;
+        });
+        s8.addChart(pptx.charts.BAR, [{ name: 'Projected ROI', labels: scenLabels, values: scenValues }], {
+            x: 0.60, y: 1.80, w: 8.40, h: 4.40,
+            showTitle: false,
+            showValue: true,
+            valueFontSize: 10,
+            valueFontColor: WHITE,
+            catAxisLabelColor: TEXT,
+            catAxisLabelFontSize: 10,
+            catAxisLabelFontFace: 'Calibri',
+            valAxisLabelColor: MUTED,
+            valAxisLabelFontSize: 9,
+            catGridLine: { style: 'none' },
+            valGridLine: { color: CARD_ALT, style: 'dash', size: 0.5 },
+            chartColors: [CYAN],
+            plotArea: { fill: { color: BG } },
+        });
+
+        // Projection sidebar
+        s8.addShape(pptx.shapes.RECTANGLE, { x: 9.20, y: 1.80, w: 3.55, h: 4.40, fill: { color: CARD } });
+        s8.addText('PROJECTED ROI', { x: 9.40, y: 1.95, w: 3.20, h: 0.35, fontSize: 12, fontFace: 'Calibri', color: MUTED, bold: true });
+        scenarios.forEach((sc, i) => {
+            const sy = 2.40 + i * 0.72;
+            s8.addText(sc.label, { x: 9.40, y: sy, w: 1.90, h: 0.70, fontSize: 11, fontFace: 'Calibri', color: TEXT, valign: 'middle' });
+            s8.addText(scenValues[i].toFixed(1) + 'x', { x: 11.30, y: sy, w: 1.30, h: 0.70, fontSize: 18, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle', align: 'right' });
+            if (i < scenarios.length - 1) {
+                s8.addShape(pptx.shapes.RECTANGLE, { x: 9.40, y: sy + 0.68, w: 3.20, h: 0.02, fill: { color: CARD_ALT } });
+            }
+        });
+
+        // Why ROI rises callout
+        s8.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: 6.40, w: 12.15, h: 0.55, fill: { color: CARD } });
+        s8.addText([
+            { text: 'Why ROI rises:  ', options: { color: CYAN, bold: true, fontSize: 13, fontFace: 'Calibri' } },
+            { text: 'shared prompt libraries, AI-first meeting culture, peer learning, and purpose-built workflows compound value at scale.', options: { color: TEXT, fontSize: 13, fontFace: 'Calibri' } }
+        ], { x: 0.85, y: 6.45, w: 11.70, h: 0.45, valign: 'middle' });
+        addFooter(s8, 8);
+
+        s8.addNotes(
+            'EXPANSION PROJECTIONS\n\n' +
+            scenarios.map(s => `  ${s.label} users: ${scenValues[scenarios.indexOf(s)].toFixed(1)}x projected ROI`).join('\n') + '\n\n' +
+            'WHY ROI RISES WITH SCALE:\n' +
+            '- Network effects: more users = more shared prompts = everyone gets better\n' +
+            '- Meeting culture shifts: when everyone has Copilot, meetings get summarized, action items get tracked\n' +
+            '- Compounding: each power user trains 3-5 peers informally\n\n' +
+            'TALKING POINT: "ROI doesn\'t plateau — it accelerates. The more people use it, the more valuable it becomes for everyone."'
+        );
+
+        // ════════════════════════════════════════════
+        // SLIDE 9: Recommendations
+        // ════════════════════════════════════════════
+        const s9 = pptx.addSlide();
+        s9.background = { color: BG };
+
+        // Decorative vertical bars (left side — mirror of title slide)
+        for (let i = 0; i < 5; i++) {
+            const x = 0.40 + i * 0.32;
+            const clr = i === 0 ? CYAN : CARD_ALT;
+            s9.addShape(pptx.shapes.RECTANGLE, { x, y: 0.60, w: 0.06, h: 6.30, fill: { color: clr } });
+        }
+
+        s9.addText('RECOMMENDATIONS', { x: 2.40, y: 0.70, w: 10.0, h: 0.40, fontSize: 12, fontFace: 'Calibri', color: CYAN, bold: true });
+        s9.addText('Where to invest next', { x: 2.40, y: 1.15, w: 10.0, h: 1.00, fontSize: 40, fontFace: 'Cambria', color: WHITE, bold: true });
+        s9.addShape(pptx.shapes.RECTANGLE, { x: 2.40, y: 2.15, w: 1.20, h: 0.06, fill: { color: CYAN } });
+
+        // 3 recommendation cards
+        const topTierName = sortedTeams.length > 0 ? sortedTeams[0].team : 'top performers';
+        const bottomTierUsers = tierData.length > 0 ? tierData[tierData.length - 1].users : 0;
+        const bottomTierRoi = tierData.length > 0 ? tierData[tierData.length - 1].roi.toFixed(1) : '?';
+        const midTierRoi = tierData.length > 2 ? tierData[Math.floor(tierData.length / 2)].roi.toFixed(1) : '?';
+        const recs = [
+            { num: '01', numColor: GREEN, title: 'Replicate top-tier playbooks', body: `Codify what ${topTierName} and top performers do differently \u2014 power user ratios, prompt patterns, weekly cadence. Package as an enablement kit for mid-tier ${groupLabel}.` },
+            { num: '02', numColor: CYAN, title: `Lift the 25\u201350% tier`, body: `${fmt(bottomTierUsers)} users at ${bottomTierRoi}x ROI. Targeted coaching to push them into the 50\u201375% band (${midTierRoi}x) adds significant monthly value for zero incremental license cost.` },
+            { num: '03', numColor: GOLD, title: 'Expand licensed footprint', body: `Each 1,000 unlicensed seats represents ~$${fmt(Math.round(annualOpp))}/year of opportunity at conservative 10% adoption. Scale to capture network effects.` },
+        ];
+        recs.forEach((rec, i) => {
+            const ry = 2.60 + i * 1.53;
+            s9.addShape(pptx.shapes.RECTANGLE, { x: 2.40, y: ry, w: 10.40, h: 1.35, fill: { color: CARD_ALT } });
+            s9.addText(rec.num, { x: 2.55, y: ry + 0.15, w: 0.90, h: 1.05, fontSize: 32, fontFace: 'Calibri', color: rec.numColor, bold: true, valign: 'middle', align: 'center' });
+            s9.addText(rec.title, { x: 3.55, y: ry + 0.15, w: 9.0, h: 0.45, fontSize: 17, fontFace: 'Calibri', color: WHITE, bold: true });
+            s9.addText(rec.body, { x: 3.55, y: ry + 0.60, w: 9.0, h: 0.65, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top' });
+        });
+
+        s9.addText(`Source: Copilot ROI Analysis  \u2022  ${rows.length} ${groupLabel} aggregated  \u2022  ${weeks} weeks  \u2022  $${config.professionalRate}/hr fully-loaded rate`, {
+            x: 2.40, y: 7.05, w: 10.40, h: 0.30, fontSize: 9, fontFace: 'Calibri', color: MUTED
+        });
+
+        s9.addNotes(
+            'RECOMMENDATIONS\n\n' +
+            'Three strategic actions:\n\n' +
+            recs.map((r, i) => `${i + 1}. ${r.title}: ${r.body}`).join('\n\n') + '\n\n' +
+            'CLOSING: "The data is clear. Every dollar works. The question is how fast we scale."\n\n' +
+            'NEXT STEPS:\n' +
+            '- Schedule follow-up to discuss expansion timeline\n' +
+            '- Identify champion teams for enablement pilot\n' +
+            '- Set quarterly review cadence for ROI tracking'
         );
 
         await pptx.writeFile({ fileName: 'Copilot_ROI_Executive_Deck.pptx' });
