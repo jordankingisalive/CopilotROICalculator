@@ -3396,3 +3396,116 @@ function toggleRecapDisplayData() {
         }
     });
 }
+
+// ══════════════════════════════════════════════════════════════
+// DOWNLOAD LOCAL PACKAGE - Offline ZIP Package Generator
+// ══════════════════════════════════════════════════════════════
+async function downloadLocalPackage(event) {
+    if (event) event.preventDefault();
+    
+    // Show loading message
+    const btn = event?.target?.closest('button');
+    const originalHTML = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="action-icon">⏳</span><span class="action-text">Creating ZIP...</span>';
+    }
+
+    try {
+        const zip = new JSZip();
+        
+        // Files to include in the package
+        const files = [
+            'index.html',
+            'roi-calculator.html',
+            'Start Here.html',
+            'styles.css',
+            'script.js',
+            'sales-script.js',
+            'sample-data.csv',
+            'lib/html2canvas.min.js',
+            'lib/jspdf.umd.min.js',
+            'lib/pptxgen.bundle.js',
+            'lib/docx.umd.js',
+            'lib/jszip.min.js'
+        ];
+
+        // Fetch and add all files to ZIP
+        for (const file of files) {
+            try {
+                const response = await fetch(file);
+                if (response.ok) {
+                    const content = await response.blob();
+                    zip.file(file, content);
+                }
+            } catch (error) {
+                console.warn(`Could not add ${file} to package:`, error);
+            }
+        }
+
+        // Add README with instructions
+        const readme = `M365 Copilot ROI Calculator - Local Package
+===========================================
+
+QUICK START:
+1. Extract ALL files from this ZIP to a folder on your computer
+2. Open "index.html" in your web browser (Chrome, Edge, or Firefox)
+3. Follow the on-screen instructions to upload your CSV data
+
+IMPORTANT: 
+- Do NOT run files directly from the ZIP - extract them first!
+- Keep all files in the same folder structure
+- No internet connection required once extracted
+
+FILES INCLUDED:
+- index.html - Full Data Analysis page
+- roi-calculator.html - ROI Calculator page
+- Start Here.html - Getting Started guide  
+- styles.css - Styling
+- script.js - Main functionality
+- sales-script.js - Sales calculator functions
+- sample-data.csv - Sample dataset
+- lib/ - Required JavaScript libraries
+
+NEED HELP?
+Visit: https://jordankingisalive.github.io/CopilotROICalculator/
+
+© 2026 Microsoft - Jordan King (jordanking@microsoft.com)
+`;
+        zip.file('README.txt', readme);
+
+        // Generate the ZIP file
+        const blob = await zip.generateAsync({ 
+            type: 'blob',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 9 }
+        });
+
+        // Trigger download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'M365_Copilot_ROI_Calculator_Local.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Reset button
+        if (btn) {
+            btn.innerHTML = '<span class="action-icon">✅</span><span class="action-text">Downloaded!</span>';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        }
+
+    } catch (error) {
+        console.error('Error creating package:', error);
+        alert('Error creating download package. Please try again or contact support.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    }
+}

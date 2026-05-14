@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M365 Copilot Productivity ROI Calculator</title>
-    <link rel="stylesheet" href="styles.css?v=20">
+    <link rel="stylesheet" href="styles.css?v=23">
     <style>
         details summary::-webkit-details-marker { display: none; }
     </style>
@@ -20,6 +20,10 @@
                     <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none; font-size: 0.95rem;">📊 View more reports on the Analytics Hub →</a></p>
                 </div>
                 <div class="header-actions">
+                    <button onclick="downloadLocalPackage(event)" class="action-btn" title="Download & Run Locally" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399; color: white !important;">
+                        <span class="action-icon">📦</span>
+                        <span class="action-text" style="color: white !important;">Download Local</span>
+                    </button>
                     <button onclick="emailReport()" class="action-btn" title="Share via Email">
                         <span class="action-icon">📧</span>
                         <span class="action-text">Email</span>
@@ -223,7 +227,8 @@
     <script src="lib/html2canvas.min.js"></script>
     <script src="lib/docx.umd.js"></script>
     <script src="lib/pptxgen.bundle.js"></script>
-    <script src="script.js?v=20"></script>
+    <script src="lib/jszip.min.js"></script>
+    <script src="script.js?v=23"></script>
     <script>
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Productivity ROI Analysis');
