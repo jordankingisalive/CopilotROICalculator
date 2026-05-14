@@ -6,8 +6,522 @@
     <title>M365 Copilot Productivity ROI Calculator</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        details[open] > summary span:first-child { transform: rotate(90deg); }
-        details summary::-webkit-details-marker { display: none; }
+        /* Additional styles for ROI Calculator section */
+        .projection-form {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .projection-form h2 {
+            color: var(--copilot-blue);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+        }
+
+        .form-section h3 {
+            color: var(--dark-blue);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--copilot-cyan);
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-field label {
+            font-weight: 600;
+            color: var(--dark-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .input-field input, .input-field select {
+            padding: 0.75rem;
+            font-size: 1rem;
+            border: 2px solid var(--light-gray);
+            border-radius: 6px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field input:focus, .input-field select:focus {
+            outline: none;
+            border-color: var(--copilot-blue);
+        }
+
+        .input-field small {
+            margin-top: 0.25rem;
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: var(--copilot-blue);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calculate-btn:hover {
+            background: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px var(--shadow);
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .scenario-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .scenario-card {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow);
+            border-top: 4px solid var(--copilot-blue);
+        }
+
+        .scenario-card.highlight {
+            border-top-color: var(--copilot-orange);
+            box-shadow: 0 6px 20px rgba(255, 140, 0, 0.2);
+        }
+
+        .scenario-card h3 {
+            color: var(--copilot-blue);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .scenario-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .scenario-metric:last-child {
+            border-bottom: none;
+        }
+
+        .scenario-metric-label {
+            font-size: 0.95rem;
+            color: var(--gray);
+        }
+
+        .scenario-metric-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--copilot-blue);
+        }
+
+        .roi-highlight {
+            background: linear-gradient(135deg, var(--green) 0%, #0a9e0a 100%);
+            color: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .roi-highlight h3 {
+            color: var(--white);
+            margin-bottom: 1rem;
+        }
+
+        .roi-value {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+
+        .assumptions-box {
+            background: var(--light-gray);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+
+        .assumptions-box h4 {
+            color: var(--copilot-blue);
+            margin-bottom: 1rem;
+        }
+
+        .assumptions-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .assumptions-box li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .assumptions-box li:last-child {
+            border-bottom: none;
+        }
+
+        /* Adoption Journey styles */
+        .journey-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .timeline-visual {
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            gap: 1.5rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .timeline-visual::before {
+            content: '';
+            position: absolute;
+            top: 60px;
+            left: 15%;
+            right: 15%;
+            height: 4px;
+            background: linear-gradient(to right, var(--copilot-cyan), var(--copilot-orange), var(--green));
+            z-index: 0;
+        }
+
+        .phase-card {
+            flex: 1;
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 16px var(--shadow);
+            position: relative;
+            z-index: 1;
+            border-top: 6px solid var(--copilot-blue);
+        }
+
+        .phase-card.baseline {
+            border-top-color: var(--copilot-cyan);
+        }
+
+        .phase-card.growth {
+            border-top-color: var(--copilot-orange);
+        }
+
+        .phase-card.maturity {
+            border-top-color: var(--green);
+        }
+
+        .phase-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .phase-badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 24px;
+            font-weight: bold;
+            color: var(--white);
+            margin-bottom: 0.5rem;
+        }
+
+        .phase-card.baseline .phase-badge {
+            background: var(--copilot-cyan);
+        }
+
+        .phase-card.growth .phase-badge {
+            background: var(--copilot-orange);
+        }
+
+        .phase-card.maturity .phase-badge {
+            background: var(--green);
+        }
+
+        .phase-timeframe {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        .phase-metrics {
+            margin: 1.5rem 0;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: var(--copilot-blue);
+        }
+
+        .monthly-projection {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px var(--shadow);
+            margin: 2rem 0;
+        }
+
+        .monthly-projection h3 {
+            color: var(--copilot-blue);
+            margin-bottom: 1.5rem;
+        }
+
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+
+        .month-card {
+            background: var(--light-gray);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .month-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .month-number {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-bottom: 0.5rem;
+        }
+
+        .month-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--copilot-blue);
+        }
+
+        .month-roi {
+            font-size: 0.9rem;
+            color: var(--green);
+            margin-top: 0.5rem;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .insight-card {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+            border-left: 4px solid var(--copilot-cyan);
+        }
+
+        .insight-card h4 {
+            color: var(--copilot-blue);
+            margin-bottom: 0.75rem;
+        }
+
+        /* Section visibility control */
+        .tab-section {
+            display: none;
+        }
+
+        .tab-section.active {
+            display: block;
+        }
+
+        /* Collapsible Important Box */
+        .important-box-wrapper {
+            margin-bottom: 2rem;
+        }
+
+        .important-box-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 1rem 1.5rem;
+            background: #fff8f0;
+            border-left: 4px solid var(--copilot-orange);
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+
+        .important-box-header:hover {
+            background: #fff3e0;
+        }
+
+        .important-box-title {
+            font-weight: bold;
+            color: var(--dark-blue);
+            font-size: 1.1rem;
+        }
+
+        .important-box-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: var(--copilot-blue);
+            font-size: 0.9rem;
+        }
+
+        .important-box-toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .important-box-toggle-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .important-box-content {
+            padding: 1.5rem;
+            background: #fff8f0;
+            border-left: 4px solid var(--copilot-orange);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            margin-top: -8px;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+
+        .important-box-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding: 0 1.5rem;
+        }
+
+        .important-box-content p {
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* Toggle Switch for Intelligent Recap */
+        .recap-toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f0f9ff;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border: 2px solid var(--copilot-blue);
+        }
+
+        .recap-toggle-label {
+            font-weight: 600;
+            color: var(--dark-blue);
+            font-size: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--copilot-blue);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        .recap-value-box {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            border: 2px solid var(--copilot-blue);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .recap-value-box h4 {
+            color: var(--copilot-blue);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .recap-value-box .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--dark-blue);
+        }
     </style>
 </head>
 <body>
@@ -19,10 +533,6 @@
                     <p class="subtitle">Transform your usage data into actionable insights</p>
                 </div>
                 <div class="header-actions">
-                    <button onclick="downloadLocalPackage(event)" class="action-btn" title="Download & Run Locally" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399; color: white !important;">
-                        <span class="action-icon">📦</span>
-                        <span class="action-text" style="color: white !important;">Download Local</span>
-                    </button>
                     <button onclick="exportToPDF()" class="action-btn" title="Export to PDF">
                         <span class="action-icon">📄</span>
                         <span class="action-text">Export PDF</span>
@@ -36,25 +546,59 @@
         </header>
 
         <nav class="nav-buttons">
-            <a href="index.html" class="nav-btn nav-btn-active">
+            <a onclick="switchTab('fullData')" class="nav-btn nav-btn-active" id="nav-fullData">
                 <span class="nav-icon">📊</span>
                 <span class="nav-text">Full Data Analysis</span>
             </a>
-            <a href="roi-calculator.html" class="nav-btn">
-                <span class="nav-icon">💼</span>
+            <a onclick="switchTab('roiCalculator')" class="nav-btn" id="nav-roiCalculator">
+                <span class="nav-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        <polyline points="17 6 23 6 23 12"></polyline>
+                    </svg>
+                </span>
                 <span class="nav-text">ROI Calculator</span>
             </a>
-            <a href="Start Here.html" class="nav-btn">
+            <a onclick="switchTab('adoptionJourney')" class="nav-btn" id="nav-adoptionJourney">
                 <span class="nav-icon">🚀</span>
                 <span class="nav-text">Adoption Journey</span>
             </a>
-            <a href="run-locally.html" class="nav-btn">
-                <span class="nav-icon">💻</span>
-                <span class="nav-text">Run Locally</span>
-            </a>
         </nav>
 
-        <main>
+        <!-- SECTION 1: Full Data Analysis -->
+        <main id="section-fullData" class="tab-section active">
+            <div class="important-box-wrapper">
+                <div class="important-box-header" onclick="toggleImportantBox('fullData')">
+                    <div class="important-box-title">⏱️ Important: Productivity ROI Realizes Over Time</div>
+                    <div class="important-box-toggle">
+                        <span id="fullData-toggle-text">Hide</span>
+                        <span class="important-box-toggle-icon" id="fullData-toggle-icon">▼</span>
+                    </div>
+                </div>
+                <div class="important-box-content" id="fullData-important-content">
+                    <p>
+                        <strong>Before analyzing your data</strong>, it's important to understand the adoption journey. Copilot value builds over 6-9 months as users progress from trial to deep integration. Month 1 might show 3-5x ROI, building to 12-20x by month 6.<br><br>
+
+                        <strong>Understanding This Calculator Suite:</strong><br>
+                        • <strong>Full Data Analysis:</strong> Upload and analyze your actual Copilot usage data from Power BI reports<br>
+                        • <strong>ROI Calculator:</strong> Project potential ROI based on estimated user counts and adoption rates<br>
+                        • <strong>Adoption Journey:</strong> View realistic timeline of value realization over 6-9 months<br><br>
+
+                        <strong>🔒 Your Privacy &amp; Data Security:</strong><br>
+                        • All calculations are processed locally in your browser<br>
+                        • No data is transmitted to any server or cloud service<br>
+                        • All data is stored temporarily in browser memory only<br>
+                        • Data is automatically deleted when you close this window or tab<br>
+                        • No logs are kept on your computer<br><br>
+
+                        <strong>📊 Note on ROI Calculations:</strong><br>
+                        • <strong>Copilot Actions:</strong> Based on your configured minutes saved per action<br>
+                        • <strong>Intelligent Recap (Optional):</strong> Each action saves 0.5 hours (30 min median meeting duration)<br>
+                        • Use the toggle in results to include/exclude Intelligent Recap from projections
+                    </p>
+                </div>
+            </div>
+
             <section class="instructions-section">
                 <h2>Getting Started</h2>
 
@@ -62,45 +606,13 @@
                     <div class="step-number">1</div>
                     <div class="step-content">
                         <h3>Export Your Heatmap Data</h3>
-                        <p>Export data from the <strong>Copilot Super Usage Report</strong> heatmap. Get the report at <a href="https://aka.ms/decodingsuperusage" target="_blank" style="color: var(--copilot-blue); font-weight: 600; text-decoration: underline;">https://aka.ms/decodingsuperusage</a>. Choose your export method below:</p>
-
-                        <details style="background: var(--surface-raised, #253449); border-radius: 10px; border: 1px solid var(--border, rgba(255,255,255,0.08)); margin: 0.75rem 0; overflow: hidden;">
-                            <summary style="padding: 1rem 1.25rem; cursor: pointer; font-weight: 700; color: var(--copilot-cyan, #00D4FF); display: flex; align-items: center; gap: 0.5rem; list-style: none;">
-                                <span style="transition: transform 0.2s; display: inline-block;">▶</span> 💻 Export from Power BI Desktop
-                            </summary>
-                            <div style="padding: 0 1.25rem 1.25rem;">
-                                <ol style="padding-left: 1.25rem; margin: 0;">
-                                    <li>Open the .pbit file in Power BI Desktop</li>
-                                    <li>Ctrl+Click ALL options on the left-hand side of the heatmap</li>
-                                    <li>Click on the heatmap visualization</li>
-                                    <li>Click the <strong>More options</strong> (⋯) menu at the top right of the visual</li>
-                                    <li>Click <strong>"Export data"</strong></li>
-                                    <li>Save the CSV file</li>
-                                </ol>
-                            </div>
-                        </details>
-
-                        <details style="background: var(--surface-raised, #253449); border-radius: 10px; border: 1px solid var(--border, rgba(255,255,255,0.08)); margin: 0.75rem 0; overflow: hidden;">
-                            <summary style="padding: 1rem 1.25rem; cursor: pointer; font-weight: 700; color: var(--copilot-cyan, #00D4FF); display: flex; align-items: center; gap: 0.5rem; list-style: none;">
-                                <span style="transition: transform 0.2s; display: inline-block;">▶</span> 🌐 Export from Power BI Web (app.powerbi.com)
-                            </summary>
-                            <div style="padding: 0 1.25rem 1.25rem;">
-                                <div style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem; color: #FCD34D;">
-                                    <strong>⚠️ Note:</strong> Exporting visual data from the Power BI web app requires your tenant admin to have enabled the "Export data" setting. If the option below is not available, use <strong>Power BI Desktop</strong> instead.
-                                </div>
-                                <ol style="padding-left: 1.25rem; margin: 0;">
-                                    <li>Open the report on app.powerbi.com</li>
-                                    <li>Ctrl+Click ALL metric options on the left-hand side of the heatmap (Enabled Users, % Active Users, etc.)</li>
-                                    <li>Click on the heatmap table to select it</li>
-                                    <li>Hover over the visual — look for a small <strong>⋯</strong> icon in the top-right corner of the visual's header bar</li>
-                                    <li>If the icon appears, click it and select <strong>"Export data"</strong>, then choose <strong>"Summarized data"</strong> → <strong>".csv"</strong> → <strong>Export</strong></li>
-                                    <li>If no icon appears, your organization's admin settings may prevent visual-level data export — use Power BI Desktop instead</li>
-                                </ol>
-                                <p style="margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--text-secondary, #94A3B8);"><strong>Tip:</strong> The top menu bar "Export" button only exports the full report as PDF, PowerPoint, or an Excel PivotTable — it does not export the visual's underlying data as a flat CSV.</p>
-                            </div>
-                        </details>
-
-                        <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary, #94A3B8);">Optional: Rename the downloaded file to <code>heatmap.csv</code> for easier identification.</p>
+                        <p>Open your Copilot-Insight Power BI report (.pbit file) and locate the usage heatmap table.</p>
+                        <ol>
+                            <li>Click on the heatmap visualization in Power BI</li>
+                            <li>Select the <strong>More options</strong> (three dots) menu in the top right of the heatmap box</li>
+                            <li>Choose <strong>"Export data"</strong> → <strong>"Summarized data"</strong></li>
+                            <li>Save the CSV file to your computer</li>
+                        </ol>
                         <div class="info-box">
                             <strong>Expected columns:</strong> Team/Division Name, Active Users, Enabled Users, Total Actions, Monthly Actions, Engagement %, etc.
                         </div>
@@ -110,70 +622,8 @@
                 <div class="step-card">
                     <div class="step-number">2</div>
                     <div class="step-content">
-                        <h3>Configure Your Analysis</h3>
-                        <p>Set your organization's parameters for Productivity ROI calculation:</p>
-
-                        <div class="config-grid">
-                            <div class="config-item">
-                                <label for="industry">Industry</label>
-                                <select id="industry" onchange="updateProfessionalRate()">
-                                    <option value="78">Pharmaceutical ($78/hr)</option>
-                                    <option value="85">Finance ($85/hr)</option>
-                                    <option value="72">Technology ($72/hr)</option>
-                                    <option value="68">Healthcare ($68/hr)</option>
-                                    <option value="65">Manufacturing ($65/hr)</option>
-                                    <option value="70">Professional Services ($70/hr)</option>
-                                    <option value="custom">Custom Rate</option>
-                                </select>
-                            </div>
-
-                            <div class="config-item">
-                                <label for="licenseCost">License Cost per User/Month (USD)</label>
-                                <input type="number" id="licensesCost" value="32" min="0" step="0.01">
-                            </div>
-
-                            <div class="config-item">
-                                <label for="professionalRate">Professional Hourly Rate (USD)</label>
-                                <input type="number" id="professionalRate" value="78" min="0" step="1">
-                                <small>Average fully-loaded cost per employee hour</small>
-                            </div>
-
-                            <div class="config-item">
-                                <label for="minutesPerAction">Minutes Saved per Action</label>
-                                <input type="range" id="minutesPerAction" value="6" min="1" max="15" step="0.5">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
-                                    <small style="margin: 0;">1 min</small>
-                                    <output id="minutesValue" style="font-weight: bold; font-size: 1.1rem; color: var(--copilot-blue);">6 min</output>
-                                    <small style="margin: 0;">15 min</small>
-                                </div>
-                                <small>Average time saved per Copilot action</small>
-                            </div>
-
-                            <div class="config-item">
-                                <label for="intelligentRecapActions">Intelligent Recap Actions per Month</label>
-                                <input type="number" id="intelligentRecapActions" value="0" min="0" step="100">
-                                <small>Optional - Additional productivity from Intelligent Recap feature</small>
-                            </div>
-                        </div>
-
-                        <div class="info-box" style="margin-top: 1rem;">
-                            <strong>📊 Intelligent Recap Usage Guidance</strong>
-                            <p>
-                                Microsoft does not publish an industry-wide benchmark for Intelligent Recap actions per 1,000 employees. However, observed usage shows active users average ~1.6 Intelligent Recap actions per week. When normalized by adoption rate, this typically equates to ~700–2,000 recap actions per 1,000 employees per month, depending on enablement and meeting load.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="step-card">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
                         <h3>Upload Your Data</h3>
                         <p>Select your exported CSV file below. Your data will be processed entirely in your browser - nothing is sent to any server.</p>
-
-                        <div class="info-box" style="margin-bottom: 1rem; border-left-color: var(--copilot-blue, #4A9EF7);">
-                            <strong>💡 Set your configuration first.</strong> Adjust your Industry, License Cost, Hourly Rate, and Minutes Saved in Step 2 above before uploading your file. After uploading, click the <strong>Calculate Productivity ROI</strong> button to generate your report.
-                        </div>
 
                         <div class="upload-area" id="uploadArea">
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -203,6 +653,49 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Configure Your Analysis</h3>
+                        <p>Set your organization's parameters for Productivity ROI calculation:</p>
+
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label for="licenseCost">License Cost per User/Month (USD)</label>
+                                <input type="number" id="licensesCost" value="32" min="0" step="0.01">
+                            </div>
+
+                            <div class="config-item">
+                                <label for="professionalRate">Professional Hourly Rate (USD)</label>
+                                <input type="number" id="professionalRate" value="78" min="0" step="1">
+                                <small>Average fully-loaded cost per employee hour</small>
+                            </div>
+
+                            <div class="config-item">
+                                <label for="minutesPerAction">Minutes Saved per Action</label>
+                                <input type="range" id="minutesPerAction" value="6" min="1" max="15" step="0.5">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                                    <small style="margin: 0;">1 min</small>
+                                    <output id="minutesValue" style="font-weight: bold; font-size: 1.1rem; color: var(--copilot-blue);">6 min</output>
+                                    <small style="margin: 0;">15 min</small>
+                                </div>
+                                <small>Average time saved per Copilot action</small>
+                            </div>
+
+                            <div class="config-item">
+                                <label for="analysisWeeks">Analysis Period (Weeks)</label>
+                                <input type="number" id="analysisWeeks" value="26" min="1" max="52" step="1">
+                            </div>
+
+                            <div class="config-item">
+                                <label for="intelligentRecapActions">Intelligent Recap Actions per Month (Optional)</label>
+                                <input type="number" id="intelligentRecapActions" value="0" min="0" step="1">
+                                <small>Additional productivity from Intelligent Recap feature</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <div id="loadingState" style="display: none;">
@@ -219,20 +712,1605 @@
             </div>
         </main>
 
+        <!-- SECTION 2: ROI Calculator -->
+        <main id="section-roiCalculator" class="tab-section">
+            <div class="important-box-wrapper">
+                <div class="important-box-header" onclick="toggleImportantBox('roi')">
+                    <div class="important-box-title">⏱️ Important: Productivity ROI Realizes Over Time</div>
+                    <div class="important-box-toggle">
+                        <span id="roi-toggle-text">Hide</span>
+                        <span class="important-box-toggle-icon" id="roi-toggle-icon">▼</span>
+                    </div>
+                </div>
+                <div class="important-box-content" id="roi-important-content">
+                    <p>
+                        <strong>Before projecting final ROI numbers</strong>, it's important to understand the adoption journey. Copilot value builds over 6-9 months as users progress from trial to deep integration. Month 1 might show 3-5x ROI, building to 12-20x by month 6.<br><br>
+
+                        <strong>Understanding This Calculator Suite:</strong><br>
+                        • <strong>Full Data Analysis:</strong> Upload and analyze your actual Copilot usage data from Power BI reports<br>
+                        • <strong>ROI Calculator:</strong> Project potential ROI based on estimated user counts and adoption rates<br>
+                        • <strong>Adoption Journey:</strong> View realistic timeline of value realization over 6-9 months<br><br>
+
+                        <strong>🔒 Your Privacy &amp; Data Security:</strong><br>
+                        • All calculations are processed locally in your browser<br>
+                        • No data is transmitted to any server or cloud service<br>
+                        • All data is stored temporarily in browser memory only<br>
+                        • Data is automatically deleted when you close this window or tab<br>
+                        • No logs are kept on your computer<br><br>
+
+                        <strong>📊 Note on ROI Calculations:</strong><br>
+                        • <strong>Copilot Actions:</strong> Based on your configured minutes saved per action<br>
+                        • <strong>Intelligent Recap (Optional):</strong> Each action saves 0.5 hours (30 min median meeting duration)<br>
+                        • Use the toggle in results to include/exclude Intelligent Recap from projections
+                    </p>
+                </div>
+            </div>
+
+            <div class="projection-form">
+                <h2>Enter Your Organization's Projections</h2>
+
+                <div class="form-section">
+                    <h3>Organization Details</h3>
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label for="companyName">Company Name</label>
+                            <input type="text" id="companyName" placeholder="Contoso">
+                        </div>
+
+                        <div class="input-field">
+                            <label for="licensedUsers">Expected Licensed Users</label>
+                            <input type="number" id="licensedUsers" value="1000" min="1" step="1">
+                            <small>Number of Copilot licenses</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Adoption Assumptions</h3>
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label for="activationRate">Expected Activation Rate (%)</label>
+                            <input type="number" id="activationRate" value="85" min="0" max="100" step="1">
+                            <small>Typical range: 70-95%</small>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="actionsPerWeek">Actions per User per Week</label>
+                            <input type="number" id="actionsPerWeek" value="15" min="1" step="1">
+                            <small>Typical range: 10-25 actions</small>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="adoptionProfile">Adoption Profile</label>
+                            <select id="adoptionProfile">
+                                <option value="conservative">Conservative (Lower adoption)</option>
+                                <option value="moderate" selected>Moderate (Typical adoption)</option>
+                                <option value="strong">Strong (High adoption)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Financial Parameters</h3>
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label for="salesLicenseCost">License Cost per User/Month (USD)</label>
+                            <input type="number" id="salesLicenseCost" value="32" min="0" step="0.01">
+                        </div>
+
+                        <div class="input-field">
+                            <label for="salesProfessionalRate">Professional Hourly Rate (USD)</label>
+                            <input type="number" id="salesProfessionalRate" value="78" min="0" step="1">
+                            <small>Fully-loaded cost per employee hour</small>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="industry">Industry</label>
+                            <select id="industry">
+                                <option value="78">Pharmaceutical ($78/hr)</option>
+                                <option value="85">Finance ($85/hr)</option>
+                                <option value="72">Technology ($72/hr)</option>
+                                <option value="68">Healthcare ($68/hr)</option>
+                                <option value="65">Manufacturing ($65/hr)</option>
+                                <option value="70">Professional Services ($70/hr)</option>
+                                <option value="custom">Custom Rate</option>
+                            </select>
+                        </div>
+
+                        <div class="input-field">
+                            <label for="salesIntelligentRecap">Intelligent Recap Actions per Month (Optional)</label>
+                            <input type="number" id="salesIntelligentRecap" value="0" min="0" step="100">
+                            <small>Additional productivity from Intelligent Recap feature</small>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="calculate-btn" onclick="calculateProjections()">Calculate Productivity ROI Projections</button>
+            </div>
+
+            <div class="results-section" id="resultsSection">
+                <!-- Results will be inserted here -->
+            </div>
+        </main>
+
+        <!-- SECTION 3: Adoption Journey -->
+        <main id="section-adoptionJourney" class="tab-section journey-container">
+            <div class="important-box-wrapper">
+                <div class="important-box-header" onclick="toggleImportantBox('adoptionJourney')">
+                    <div class="important-box-title">⏱️ Important: Productivity ROI Realizes Over Time</div>
+                    <div class="important-box-toggle">
+                        <span id="adoptionJourney-toggle-text">Hide</span>
+                        <span class="important-box-toggle-icon" id="adoptionJourney-toggle-icon">▼</span>
+                    </div>
+                </div>
+                <div class="important-box-content" id="adoptionJourney-important-content">
+                    <p>
+                        Successful Copilot deployments follow a predictable pattern. Value doesn't appear instantly—it grows as users progress from initial trial to deep integration. This journey typically takes 6-9 months to reach full maturity. Understanding this timeline helps set realistic expectations and plan for sustained growth.<br><br>
+
+                        <strong>Understanding This Calculator Suite:</strong><br>
+                        • <strong>Full Data Analysis:</strong> Upload and analyze your actual Copilot usage data from Power BI reports<br>
+                        • <strong>ROI Calculator:</strong> Project potential ROI based on estimated user counts and adoption rates<br>
+                        • <strong>Adoption Journey:</strong> View realistic timeline of value realization over 6-9 months<br><br>
+
+                        <strong>🔒 Your Privacy &amp; Data Security:</strong><br>
+                        • All calculations are processed locally in your browser<br>
+                        • No data is transmitted to any server or cloud service<br>
+                        • All data is stored temporarily in browser memory only<br>
+                        • Data is automatically deleted when you close this window or tab<br>
+                        • No logs are kept on your computer<br><br>
+
+                        <strong>📊 Note on ROI Calculations:</strong><br>
+                        • <strong>Copilot Actions:</strong> Based on your configured minutes saved per action<br>
+                        • <strong>Intelligent Recap (Optional):</strong> Each action saves 0.5 hours (30 min median meeting duration)<br>
+                        • Use the toggle in results to include/exclude Intelligent Recap from projections
+                    </p>
+                </div>
+            </div>
+
+            <section>
+                <h2 style="text-align: center; color: var(--copilot-blue); margin-bottom: 2rem;">Typical 6-Month Adoption Journey</h2>
+
+                <div class="timeline-visual">
+                    <div class="phase-card baseline">
+                        <div class="phase-header">
+                            <div class="phase-badge">BASELINE</div>
+                            <div class="phase-timeframe">Months 1-2</div>
+                        </div>
+
+                        <div class="phase-metrics">
+                            <div class="metric-row">
+                                <span class="metric-label">Active Users</span>
+                                <span class="metric-value">30-50%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Actions/User/Week</span>
+                                <span class="metric-value">8-12</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Power Users</span>
+                                <span class="metric-value">5-8%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Monthly ROI</span>
+                                <span class="metric-value" style="color: var(--copilot-cyan);">3-5x</span>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 0.9rem; color: var(--gray); margin-top: 1rem;">
+                            <strong>Characteristics:</strong> Initial rollout, awareness building, trial usage, users exploring features
+                        </p>
+                    </div>
+
+                    <div class="phase-card growth">
+                        <div class="phase-header">
+                            <div class="phase-badge">GROWTH</div>
+                            <div class="phase-timeframe">Months 3-4</div>
+                        </div>
+
+                        <div class="phase-metrics">
+                            <div class="metric-row">
+                                <span class="metric-label">Active Users</span>
+                                <span class="metric-value">60-75%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Actions/User/Week</span>
+                                <span class="metric-value">15-20</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Power Users</span>
+                                <span class="metric-value">12-18%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Monthly ROI</span>
+                                <span class="metric-value" style="color: var(--copilot-orange);">6-10x</span>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 0.9rem; color: var(--gray); margin-top: 1rem;">
+                            <strong>Characteristics:</strong> Workflow integration, champions emerging, training impact visible, momentum building
+                        </p>
+                    </div>
+
+                    <div class="phase-card maturity">
+                        <div class="phase-header">
+                            <div class="phase-badge">MATURITY</div>
+                            <div class="phase-timeframe">Months 5-6+</div>
+                        </div>
+
+                        <div class="phase-metrics">
+                            <div class="metric-row">
+                                <span class="metric-label">Active Users</span>
+                                <span class="metric-value">85-95%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Actions/User/Week</span>
+                                <span class="metric-value">25-35+</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Power Users</span>
+                                <span class="metric-value">25-35%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Monthly ROI</span>
+                                <span class="metric-value" style="color: var(--green);">12-20x</span>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 0.9rem; color: var(--gray); margin-top: 1rem;">
+                            <strong>Characteristics:</strong> Deep integration, habitual use, advanced features adopted, organizational transformation
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="monthly-projection">
+                <h3>Month-by-Month Productivity ROI Projection (1,000 Users Example)</h3>
+
+                <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--light-gray); border-radius: 8px;">
+                    <span style="font-weight: 600; color: var(--dark-blue);">Estimate Type:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="estimateToggle" onchange="updateProjectionEstimate()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span id="estimateLabel" style="font-weight: 600; color: var(--copilot-blue);">Base Estimate (6 min/action)</span>
+                </div>
+
+                <p id="projectionDescription" style="color: var(--gray); margin-bottom: 1.5rem;">
+                    Based on 1,000 licensed users, $32/user/month, $78/hr professional rate, 6 min/action
+                </p>
+
+                <div class="month-grid" id="monthlyGrid">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button class="btn-primary" onclick="switchTab('roiCalculator')">Customize Your Projection →</button>
+                </div>
+            </section>
+
+            <section class="insights-grid">
+                <div class="insight-card">
+                    <h4>📊 Why The Ramp Matters</h4>
+                    <p>
+                        Organizations that try to rush adoption may experience stagnant results or lower engagement. The 6-9 month journey allows for proper training, champion development, and cultural adaptation. Attempting to achieve month-6 metrics in month-1 can lead to user frustration and reduced adoption.
+                    </p>
+                </div>
+
+                <div class="insight-card">
+                    <h4>🎯 Planning for Growth</h4>
+                    <p>
+                        Setting realistic expectations is crucial: you might expect 3-5x ROI in month 1, building to 12-20x by month 6. Understanding this natural progression can help organizations plan appropriately and avoid disappointment. Organizations with realistic expectations may be 3x more likely to reach full maturity.
+                    </p>
+                </div>
+
+                <div class="insight-card">
+                    <h4>💡 Accelerating The Journey</h4>
+                    <p>
+                        While the timeline is natural, you can accelerate it: Executive sponsorship (2-3 months faster), comprehensive training (40% faster), active champion network (50% more power users), and regular feedback loops (sustained momentum).
+                    </p>
+                </div>
+
+                <div class="insight-card">
+                    <h4>⚠️ Warning Signs</h4>
+                    <p>
+                        Watch for stalled adoption: Month 3 with <50% active users, no power user growth, declining actions per user, or executive disengagement. These signal the need for intervention—typically more training or use case development.
+                    </p>
+                </div>
+
+                <div class="insight-card">
+                    <h4>📈 Success Indicators</h4>
+                    <p>
+                        Positive signs: Week-over-week growth in active users, power users doubling every 6-8 weeks, actions per user increasing, and organic champion emergence. These patterns predict reaching full maturity by month 6-8.
+                    </p>
+                </div>
+
+                <div class="insight-card">
+                    <h4>🔄 Post-Maturity</h4>
+                    <p>
+                        After month 6, focus shifts from adoption to optimization: Advanced feature enablement, custom plugins/extensions, cross-department best practices, and continuous improvement. ROI can grow to 25-30x in mature deployments.
+                    </p>
+                </div>
+            </section>
+
+            <div class="roi-table-container">
+                <h2>Real Customer Examples</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Organization</th>
+                            <th>Industry</th>
+                            <th>Users</th>
+                            <th>Time to Maturity</th>
+                            <th>Month 6 ROI</th>
+                            <th>Key Success Factor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Pharmaceutical Co.</strong></td>
+                            <td>Healthcare</td>
+                            <td>1,711</td>
+                            <td>26 weeks</td>
+                            <td style="color: var(--green); font-weight: bold;">16x</td>
+                            <td>Executive sponsorship + champions</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Financial Services</strong></td>
+                            <td>Finance</td>
+                            <td>25,000</td>
+                            <td>18 weeks</td>
+                            <td style="color: var(--green); font-weight: bold;">4.8x</td>
+                            <td>Division-specific training</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Tech Company</strong></td>
+                            <td>Technology</td>
+                            <td>5,200</td>
+                            <td>32 weeks</td>
+                            <td style="color: var(--green); font-weight: bold;">22x</td>
+                            <td>Developer-led adoption</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Manufacturing</strong></td>
+                            <td>Industrial</td>
+                            <td>3,400</td>
+                            <td>28 weeks</td>
+                            <td style="color: var(--green); font-weight: bold;">14x</td>
+                            <td>Use case library + feedback loops</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="info-box" style="margin-top: 2rem; background: #f0f9ff; border-left-color: var(--copilot-blue);">
+                <strong>💼 For Sales Conversations</strong>
+                <p>
+                    <strong>Use this page to:</strong><br>
+                    • Set realistic expectations about adoption timelines<br>
+                    • Show that ROI doesn't happen instantly but builds predictably<br>
+                    • Demonstrate that 6-9 months is normal and expected<br>
+                    • Position month-1 ROI (3-5x) as the baseline, not the ceiling<br>
+                    • Explain that the journey requires investment in training and change management<br>
+                    • Show examples of real customer progressions<br><br>
+                    <strong>Key message:</strong> "Copilot isn't a one-time productivity boost—it's a transformation journey that delivers increasing returns over 6-9 months."
+                </p>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem; margin-bottom: 2rem;">
+                <a onclick="switchTab('roiCalculator')" class="btn-primary" style="text-decoration: none; margin-right: 1rem; cursor: pointer;">Calculate Projected ROI →</a>
+                <a onclick="switchTab('fullData')" class="btn-secondary" style="text-decoration: none; cursor: pointer;">← Back to Data Analysis</a>
+            </div>
+        </main>
+
         <footer>
             <p>M365 Copilot Productivity ROI Calculator Suite | All data processed locally in your browser | Support: <a href="mailto:jordanking@microsoft.com" style="color: var(--copilot-blue); text-decoration: none;">jordanking@microsoft.com</a></p>
         </footer>
     </div>
 
-    <script src="lib/jszip.min.js"></script>
-    <script src="script.js?v=22"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- JavaScript for tab navigation -->
+    <script>
+        function switchTab(tabName) {
+            // Hide all sections
+            document.querySelectorAll('.tab-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Remove active class from all nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('nav-btn-active');
+            });
+
+            // Show selected section
+            document.getElementById('section-' + tabName).classList.add('active');
+
+            // Activate selected nav button
+            document.getElementById('nav-' + tabName).classList.add('nav-btn-active');
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleImportantBox(sectionId) {
+            const content = document.getElementById(sectionId + '-important-content');
+            const icon = document.getElementById(sectionId + '-toggle-icon');
+            const text = document.getElementById(sectionId + '-toggle-text');
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                icon.classList.remove('collapsed');
+                text.textContent = 'Hide';
+            } else {
+                content.classList.add('collapsed');
+                icon.classList.add('collapsed');
+                text.textContent = 'Show';
+            }
+        }
+    </script>
+
+    <!-- JavaScript from script.js (Full Data Analysis) -->
+    <script>
+        // Global state
+        let uploadedData = null;
+        let config = {
+            licenseCost: 32,
+            professionalRate: 78,
+            minutesPerAction: 6,
+            analysisWeeks: 26
+        };
+
+        // Initialize upload functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const fileSelectBtn = document.getElementById('fileSelectBtn');
+
+            // File select button
+            fileSelectBtn.addEventListener('click', () => fileInput.click());
+
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            // Drag and drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+
+                if (e.dataTransfer.files.length > 0) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            // Click to upload
+            uploadArea.addEventListener('click', () => {
+                if (event.target !== fileSelectBtn) {
+                    fileInput.click();
+                }
+            });
+
+            // Config inputs
+            document.getElementById('licensesCost').addEventListener('change', (e) => {
+                config.licenseCost = parseFloat(e.target.value);
+                if (uploadedData) renderResults();
+            });
+
+            document.getElementById('professionalRate').addEventListener('change', (e) => {
+                config.professionalRate = parseFloat(e.target.value);
+                if (uploadedData) renderResults();
+            });
+
+            // Minutes per action slider
+            const minutesSlider = document.getElementById('minutesPerAction');
+            const minutesOutput = document.getElementById('minutesValue');
+
+            minutesSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                minutesOutput.textContent = `${value} min`;
+                config.minutesPerAction = value;
+                if (uploadedData) renderResults();
+            });
+
+            document.getElementById('analysisWeeks').addEventListener('change', (e) => {
+                config.analysisWeeks = parseInt(e.target.value);
+                if (uploadedData) renderResults();
+            });
+
+            // Initialize monthly grid for Adoption Journey
+            renderMonthlyGrid(6);
+        });
+
+        // Handle file upload
+        function handleFile(file) {
+            if (!file.name.endsWith('.csv')) {
+                showError('Please upload a CSV file');
+                return;
+            }
+
+            showLoading();
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const csvData = e.target.result;
+                    uploadedData = parseCSV(csvData);
+                    renderResults();
+                } catch (error) {
+                    showError('Error processing file: ' + error.message);
+                }
+            };
+            reader.onerror = () => {
+                showError('Error reading file');
+            };
+            reader.readAsText(file);
+        }
+
+        // Parse CSV and flatten data structure in RAM
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) {
+                throw new Error('CSV file appears to be empty');
+            }
+
+            // Parse header
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+
+            // Parse rows
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                if (values.length === headers.length) {
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    rows.push(row);
+                }
+            }
+
+            if (rows.length === 0) {
+                throw new Error('No valid data rows found in CSV');
+            }
+
+            // Flatten and normalize data
+            return flattenData(rows);
+        }
+
+        // Parse a single CSV line (handles commas in quotes)
+        function parseCSVLine(line) {
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = line[i + 1];
+
+                if (char === '"' && inQuotes && nextChar === '"') {
+                    current += '"';
+                    i++; // Skip next quote
+                } else if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    values.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            values.push(current.trim());
+
+            return values.map(v => v.replace(/^"|"$/g, ''));
+        }
+
+        // Flatten data structure for analysis
+        function flattenData(rows) {
+            // Try to detect column names (flexible mapping)
+            const columnMappings = {
+                team: ['Team', 'Division', 'Department', 'Organization', 'Org', 'Team Name', 'Division Name'],
+                enabledUsers: ['Enabled Users', 'Licensed Users', 'Total Users', 'Enabled'],
+                activeUsers: ['Active Users', 'Active', 'Users'],
+                totalActions: ['Total Actions', 'Actions', 'Total Activity'],
+                monthlyActions: ['Monthly Actions', 'Monthly Activity', 'Actions (Monthly)'],
+                engagement: ['Engagement %', 'Engagement', 'Engagement Rate', 'Engagement Percentage']
+            };
+
+            // Find matching columns
+            const headers = Object.keys(rows[0]);
+            const mapping = {};
+
+            for (const [key, possibleNames] of Object.entries(columnMappings)) {
+                for (const name of possibleNames) {
+                    const found = headers.find(h => h.toLowerCase().includes(name.toLowerCase()));
+                    if (found) {
+                        mapping[key] = found;
+                        break;
+                    }
+                }
+            }
+
+            // Validate required columns
+            if (!mapping.team) {
+                throw new Error('Could not find team/division column in CSV');
+            }
+
+            // Flatten rows into normalized structure
+            const flattenedData = rows.map(row => {
+                const enabledUsers = parseNumber(row[mapping.enabledUsers] || row[mapping.activeUsers] || 0);
+                const activeUsers = parseNumber(row[mapping.activeUsers] || row[mapping.enabledUsers] || 0);
+
+                // Calculate monthly actions
+                let monthlyActions = parseNumber(row[mapping.monthlyActions] || row[mapping.totalActions] || 0);
+
+                // If we have total actions but not monthly, estimate
+                if (!monthlyActions && row[mapping.totalActions]) {
+                    monthlyActions = parseNumber(row[mapping.totalActions]) / (config.analysisWeeks / 4.33);
+                }
+
+                const weeklyActions = monthlyActions / 4.33;
+
+                return {
+                    team: row[mapping.team],
+                    enabledUsers: enabledUsers,
+                    activeUsers: activeUsers,
+                    weeklyActions: weeklyActions,
+                    monthlyActions: monthlyActions,
+                    engagement: parseNumber(row[mapping.engagement] || 0),
+                    actionsPerUser: activeUsers > 0 ? weeklyActions / activeUsers : 0
+                };
+            }).filter(row => row.enabledUsers > 0 || row.activeUsers > 0);
+
+            return {
+                rows: flattenedData,
+                mapping: mapping
+            };
+        }
+
+        // Parse number from string (handles percentages, commas, etc.)
+        function parseNumber(value) {
+            if (typeof value === 'number') return value;
+            if (!value) return 0;
+
+            // Remove commas, spaces, and percentage signs
+            const cleaned = value.toString().replace(/[,%\s]/g, '');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Calculate all ROI metrics
+        function calculateMetrics(data) {
+            const rows = data.rows;
+
+            // Aggregate totals
+            const totalEnabledUsers = rows.reduce((sum, row) => sum + row.enabledUsers, 0);
+            const totalActiveUsers = rows.reduce((sum, row) => sum + row.activeUsers, 0);
+            const totalWeeklyActions = rows.reduce((sum, row) => sum + row.weeklyActions, 0);
+            const totalMonthlyActions = rows.reduce((sum, row) => sum + row.monthlyActions, 0);
+
+            // Activation rate
+            const activationRate = totalEnabledUsers > 0 ? (totalActiveUsers / totalEnabledUsers) * 100 : 0;
+
+            // Average actions per user
+            const avgActionsPerUser = totalActiveUsers > 0 ? totalWeeklyActions / totalActiveUsers : 0;
+
+            // Power users (>20 actions/week threshold)
+            const powerUserThreshold = 20;
+            const powerUsers = rows.filter(row => row.actionsPerUser >= powerUserThreshold).length;
+            const powerUserRate = rows.length > 0 ? (powerUsers / rows.length) * 100 : 0;
+
+            // Monthly costs
+            const monthlyCost = totalEnabledUsers * config.licenseCost;
+            const annualCost = monthlyCost * 12;
+
+            // ROI Calculations using configured minutes per action
+            const minsPerAction = config.minutesPerAction;
+            const hoursPerMonth = (totalMonthlyActions * minsPerAction) / 60;
+            const valuePerMonth = hoursPerMonth * config.professionalRate;
+            const annualValue = valuePerMonth * 12;
+            const roiMultiple = monthlyCost > 0 ? (valuePerMonth / monthlyCost) : 0;
+
+            // Weekly hours saved
+            const weeklyHoursSaved = (totalWeeklyActions * minsPerAction) / 60;
+
+            return {
+                totalEnabledUsers,
+                totalActiveUsers,
+                activationRate,
+                avgActionsPerUser,
+                powerUsers,
+                powerUserRate,
+                totalWeeklyActions,
+                totalMonthlyActions,
+                weeklyHoursSaved,
+                monthlyCost,
+                annualCost,
+                minsPerAction,
+                hoursPerMonth,
+                valuePerMonth,
+                annualValue,
+                roiMultiple
+            };
+        }
+
+        // Render results page for Full Data Analysis
+        function renderResults() {
+            const metrics = calculateMetrics(uploadedData);
+            const rows = uploadedData.rows;
+
+            // Sort teams by monthly value using configured minutes per action
+            const sortedTeams = rows.map(row => {
+                const monthlyValue = (row.monthlyActions * config.minutesPerAction / 60) * config.professionalRate;
+                const weeklyHours = (row.weeklyActions * config.minutesPerAction / 60);
+                return {
+                    ...row,
+                    monthlyValue,
+                    weeklyHours
+                };
+            }).sort((a, b) => b.monthlyValue - a.monthlyValue);
+
+            const html = `
+                <div class="results-container">
+                    <header>
+                        <h1>M365 Copilot Productivity ROI Analysis Results</h1>
+                        <p class="subtitle">Based on ${rows.length} teams/divisions • ${config.analysisWeeks} weeks of data</p>
+                    </header>
+
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Enabled Users</div>
+                            <div class="metric-value">${metrics.totalEnabledUsers.toLocaleString()}</div>
+                            <div class="metric-sublabel">Licensed for Copilot</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-label">Activation Rate</div>
+                            <div class="metric-value">${metrics.activationRate.toFixed(1)}%</div>
+                            <div class="metric-sublabel">${metrics.totalActiveUsers.toLocaleString()} active users</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-label">Weekly Actions per User</div>
+                            <div class="metric-value">${metrics.avgActionsPerUser.toFixed(1)}</div>
+                            <div class="metric-sublabel">${metrics.totalWeeklyActions.toLocaleString()} total/week</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-label">Weekly Hours Saved</div>
+                            <div class="metric-value">${metrics.weeklyHoursSaved.toLocaleString(0)}</div>
+                            <div class="metric-sublabel">Conservative estimate</div>
+                        </div>
+                    </div>
+
+                    <div class="roi-table-container">
+                        <h2>Productivity ROI Calculation</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time Savings Assumption</th>
+                                    <th>Hours/Month</th>
+                                    <th>Monthly Value</th>
+                                    <th>Annual Value</th>
+                                    <th>Monthly ROI Multiple</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td><strong>${metrics.minsPerAction} minutes per action</strong><br><small>Configurable setting</small></td>
+                                    <td>${metrics.hoursPerMonth.toLocaleString(0)} hrs</td>
+                                    <td>$${metrics.valuePerMonth.toLocaleString(0)}</td>
+                                    <td>$${metrics.annualValue.toLocaleString(0)}</td>
+                                    <td style="color: var(--green); font-weight: bold;">${metrics.roiMultiple.toFixed(1)}x</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" style="background: var(--light-gray); padding: 1rem;">
+                                        <strong>Investment:</strong> $${metrics.monthlyCost.toLocaleString(0)}/month
+                                        ($${metrics.annualCost.toLocaleString(0)}/year) for ${metrics.totalEnabledUsers.toLocaleString()} licenses at $${config.licenseCost}/user/month<br>
+                                        <strong>Professional Rate:</strong> $${config.professionalRate}/hour (fully-loaded cost)<br>
+                                        <strong>Calculation:</strong> ${metrics.totalMonthlyActions.toLocaleString(0)} monthly actions × ${metrics.minsPerAction} min ÷ 60 × $${config.professionalRate}/hr = $${metrics.valuePerMonth.toLocaleString(0)}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="leaderboard-container">
+                        <h2>Top 10 Teams by Value Generated</h2>
+                        ${sortedTeams.slice(0, 10).map((team, index) => `
+                            <div class="leaderboard-item">
+                                <div class="leaderboard-rank">${index + 1}</div>
+                                <div class="leaderboard-name">${team.team}</div>
+                                <div>
+                                    <span class="leaderboard-value">$${team.monthlyValue.toLocaleString(0)}/mo</span>
+                                    <span class="leaderboard-subvalue">${team.weeklyHours.toFixed(0)} hrs/week</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="leaderboard-container">
+                        <h2>All Teams Performance</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Team/Division</th>
+                                    <th>Active Users</th>
+                                    <th>Weekly Actions</th>
+                                    <th>Actions/User</th>
+                                    <th>Weekly Hours</th>
+                                    <th>Monthly Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sortedTeams.map(team => `
+                                    <tr>
+                                        <td>${team.team}</td>
+                                        <td>${team.activeUsers.toLocaleString(0)}</td>
+                                        <td>${team.weeklyActions.toLocaleString(0)}</td>
+                                        <td>${team.actionsPerUser.toFixed(1)}</td>
+                                        <td>${team.weeklyHours.toFixed(0)}</td>
+                                        <td><strong>$${team.monthlyValue.toLocaleString(0)}</strong></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="info-box" style="margin-top: 2rem;">
+                        <strong>Calculation Methodology</strong>
+                        <p>
+                            • <strong>Time savings:</strong> ${metrics.minsPerAction} minutes saved per Copilot action (adjustable 1-15 min)<br>
+                            • <strong>Professional rate:</strong> $${config.professionalRate}/hour fully-loaded cost (salary + benefits + overhead)<br>
+                            • <strong>Analysis period:</strong> ${config.analysisWeeks} weeks of actual usage data<br>
+                            • <strong>Productivity ROI Multiple:</strong> Monthly productivity value ÷ monthly license cost<br>
+                            • <strong>Reference:</strong> Microsoft research suggests 6 min average; adjust based on your use cases<br>
+                            • All data processed locally in your browser - no data transmitted to servers
+                        </p>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <button class="btn-primary" onclick="location.reload()">Analyze Another File</button>
+                        <button class="btn-secondary" onclick="window.print()">Print Report</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('section-fullData').innerHTML = html;
+        }
+
+        // Show loading state
+        function showLoading() {
+            document.querySelector('.instructions-section').style.display = 'none';
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('errorState').style.display = 'none';
+        }
+
+        // Show error state
+        function showError(message) {
+            document.querySelector('.instructions-section').style.display = 'none';
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+        }
+    </script>
+
+    <!-- JavaScript from sales-script.js (ROI Calculator) -->
+    <script>
+        // Industry rate selector
+        document.getElementById('industry').addEventListener('change', function() {
+            const rate = this.value;
+            const rateInput = document.getElementById('salesProfessionalRate');
+
+            if (rate === 'custom') {
+                rateInput.disabled = false;
+                rateInput.focus();
+            } else {
+                rateInput.value = rate;
+                rateInput.disabled = true;
+            }
+        });
+
+        // Adoption profile presets
+        document.getElementById('adoptionProfile').addEventListener('change', function() {
+            const profile = this.value;
+            const activationInput = document.getElementById('activationRate');
+            const actionsInput = document.getElementById('actionsPerWeek');
+
+            const presets = {
+                conservative: { activation: 70, actions: 10 },
+                moderate: { activation: 85, actions: 15 },
+                strong: { activation: 95, actions: 25 }
+            };
+
+            if (presets[profile]) {
+                activationInput.value = presets[profile].activation;
+                actionsInput.value = presets[profile].actions;
+            }
+        });
+
+        // Calculate projections
+        function calculateProjections() {
+            // Get input values
+            const companyName = document.getElementById('companyName').value || 'Customer Organization';
+            const licensedUsers = parseInt(document.getElementById('licensedUsers').value);
+            const activationRate = parseFloat(document.getElementById('activationRate').value) / 100;
+            const actionsPerWeek = parseFloat(document.getElementById('actionsPerWeek').value);
+            const licenseCost = parseFloat(document.getElementById('salesLicenseCost').value);
+            const professionalRate = parseFloat(document.getElementById('salesProfessionalRate').value);
+            const recapActions = parseInt(document.getElementById('salesIntelligentRecap').value) || 0;
+
+            // Validate inputs
+            if (!licensedUsers || licensedUsers < 1) {
+                alert('Please enter a valid number of licensed users');
+                return;
+            }
+
+            // Calculate derived metrics
+            const activeUsers = Math.round(licensedUsers * activationRate);
+            const weeklyActions = activeUsers * actionsPerWeek;
+            const monthlyActions = weeklyActions * 4.33; // Average weeks per month
+
+            // Monthly costs
+            const monthlyCost = licensedUsers * licenseCost;
+            const annualCost = monthlyCost * 12;
+
+            // Calculate Intelligent Recap value
+            const INTELLIGENT_RECAP_HOURS_PER_ACTION = 0.5; // 30 minutes median meeting duration
+            const recapHoursSaved = recapActions * INTELLIGENT_RECAP_HOURS_PER_ACTION;
+            const recapMonthlyValue = recapHoursSaved * professionalRate;
+            const recapAnnualValue = recapMonthlyValue * 12;
+
+            // Conservative scenario (3 min per action)
+            const conservativeMins = 3;
+            const conservativeHoursPerMonth = (monthlyActions * conservativeMins) / 60;
+            const conservativeWeeklyHours = (weeklyActions * conservativeMins) / 60;
+            const conservativeMonthlyValue = conservativeHoursPerMonth * professionalRate;
+            const conservativeAnnualValue = conservativeMonthlyValue * 12;
+            const conservativeROI = monthlyCost > 0 ? conservativeMonthlyValue / monthlyCost : 0;
+
+            // Base scenario (6 min per action)
+            const baseMins = 6;
+            const baseHoursPerMonth = (monthlyActions * baseMins) / 60;
+            const baseWeeklyHours = (weeklyActions * baseMins) / 60;
+            const baseMonthlyValue = baseHoursPerMonth * professionalRate;
+            const baseAnnualValue = baseMonthlyValue * 12;
+            const baseROI = monthlyCost > 0 ? baseMonthlyValue / monthlyCost : 0;
+
+            // Optimistic scenario (10 min per action)
+            const optimisticMins = 10;
+            const optimisticHoursPerMonth = (monthlyActions * optimisticMins) / 60;
+            const optimisticWeeklyHours = (weeklyActions * optimisticMins) / 60;
+            const optimisticMonthlyValue = optimisticHoursPerMonth * professionalRate;
+            const optimisticAnnualValue = optimisticMonthlyValue * 12;
+            const optimisticROI = monthlyCost > 0 ? optimisticMonthlyValue / monthlyCost : 0;
+
+            // Payback period (months to recover annual cost)
+            const conservativePayback = annualCost / conservativeMonthlyValue;
+            const basePayback = annualCost / baseMonthlyValue;
+            const optimisticPayback = annualCost / optimisticMonthlyValue;
+
+            // Render results
+            renderSalesResults({
+                companyName,
+                licensedUsers,
+                activeUsers,
+                activationRate: activationRate * 100,
+                actionsPerWeek,
+                weeklyActions,
+                monthlyActions,
+                monthlyCost,
+                annualCost,
+                professionalRate,
+                licenseCost,
+                recapActions,
+                recapHoursSaved,
+                recapMonthlyValue,
+                recapAnnualValue,
+                conservative: {
+                    mins: conservativeMins,
+                    weeklyHours: conservativeWeeklyHours,
+                    monthlyHours: conservativeHoursPerMonth,
+                    monthlyValue: conservativeMonthlyValue,
+                    annualValue: conservativeAnnualValue,
+                    roi: conservativeROI,
+                    payback: conservativePayback
+                },
+                base: {
+                    mins: baseMins,
+                    weeklyHours: baseWeeklyHours,
+                    monthlyHours: baseHoursPerMonth,
+                    monthlyValue: baseMonthlyValue,
+                    annualValue: baseAnnualValue,
+                    roi: baseROI,
+                    payback: basePayback
+                },
+                optimistic: {
+                    mins: optimisticMins,
+                    weeklyHours: optimisticWeeklyHours,
+                    monthlyHours: optimisticHoursPerMonth,
+                    monthlyValue: optimisticMonthlyValue,
+                    annualValue: optimisticAnnualValue,
+                    roi: optimisticROI,
+                    payback: optimisticPayback
+                }
+            });
+        }
+
+        // Render sales results
+        function renderSalesResults(data) {
+            const resultsSection = document.getElementById('resultsSection');
+
+            // Calculate values with Intelligent Recap included
+            const conservativeWithRecap = {
+                monthlyValue: data.conservative.monthlyValue + data.recapMonthlyValue,
+                annualValue: data.conservative.annualValue + data.recapAnnualValue,
+                roi: (data.conservative.monthlyValue + data.recapMonthlyValue) / data.monthlyCost,
+                payback: data.annualCost / (data.conservative.monthlyValue + data.recapMonthlyValue)
+            };
+
+            const baseWithRecap = {
+                monthlyValue: data.base.monthlyValue + data.recapMonthlyValue,
+                annualValue: data.base.annualValue + data.recapAnnualValue,
+                roi: (data.base.monthlyValue + data.recapMonthlyValue) / data.monthlyCost,
+                payback: data.annualCost / (data.base.monthlyValue + data.recapMonthlyValue)
+            };
+
+            const optimisticWithRecap = {
+                monthlyValue: data.optimistic.monthlyValue + data.recapMonthlyValue,
+                annualValue: data.optimistic.annualValue + data.recapAnnualValue,
+                roi: (data.optimistic.monthlyValue + data.recapMonthlyValue) / data.monthlyCost,
+                payback: data.annualCost / (data.optimistic.monthlyValue + data.recapMonthlyValue)
+            };
+
+            // Determine if we should show recap controls (only if recap actions > 0)
+            const showRecap = data.recapActions > 0;
+
+            const html = `
+                <div style="animation: fadeIn 0.5s ease;">
+                    <header style="text-align: center; margin-bottom: 2rem;">
+                        <h2 style="color: var(--copilot-blue); font-size: 2rem;">Projected Productivity ROI for ${data.companyName}</h2>
+                        <p style="color: var(--gray);">Based on ${data.licensedUsers.toLocaleString()} licenses with ${data.activationRate.toFixed(0)}% activation</p>
+                    </header>
+
+                    ${showRecap ? `
+                    <!-- Intelligent Recap Toggle -->
+                    <div class="recap-toggle-container" id="recapToggleContainer">
+                        <span class="recap-toggle-label">Include Intelligent Recap in ROI:</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="recapToggleSales" checked onchange="toggleRecapDisplaySales()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="recap-toggle-label" id="recapToggleStatusSales">Included</span>
+                    </div>
+
+                    <!-- Intelligent Recap Value Display -->
+                    <div class="recap-value-box" id="recapValueBoxSales">
+                        <h4>💡 Intelligent Recap Additional Value</h4>
+                        <div class="value">$${data.recapMonthlyValue.toLocaleString(0)}/mo</div>
+                        <small>${data.recapActions.toLocaleString()} actions × 0.5 hours each = ${data.recapHoursSaved.toLocaleString()} hours/mo</small>
+                    </div>
+                    ` : ''}
+
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Licensed Users</div>
+                            <div class="metric-value">${data.licensedUsers.toLocaleString()}</div>
+                            <div class="metric-sublabel">Copilot licenses</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-label">Active Users</div>
+                            <div class="metric-value">${data.activeUsers.toLocaleString()}</div>
+                            <div class="metric-sublabel">${data.activationRate.toFixed(0)}% activation</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-label">Weekly Actions</div>
+                            <div class="metric-value">${data.weeklyActions.toLocaleString(0)}</div>
+                            <div class="metric-sublabel">${data.actionsPerWeek} per user</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-label">Monthly Actions</div>
+                            <div class="metric-value">${data.monthlyActions.toLocaleString(0)}</div>
+                            <div class="metric-sublabel">Total organization</div>
+                        </div>
+                    </div>
+
+                    <div class="roi-highlight">
+                        <h3>Projected Annual ROI Range</h3>
+                        <div class="roi-value" id="roiRangeValueSales"
+                             data-without-recap="$${data.conservative.annualValue.toLocaleString(0)} - $${data.optimistic.annualValue.toLocaleString(0)}"
+                             data-with-recap="$${conservativeWithRecap.annualValue.toLocaleString(0)} - $${optimisticWithRecap.annualValue.toLocaleString(0)}">
+                            ${showRecap ? `$${conservativeWithRecap.annualValue.toLocaleString(0)} - $${optimisticWithRecap.annualValue.toLocaleString(0)}` : `$${data.conservative.annualValue.toLocaleString(0)} - $${data.optimistic.annualValue.toLocaleString(0)}`}
+                        </div>
+                        <p style="font-size: 1.2rem; margin: 0;" id="roiMultipleTextSales"
+                           data-without-recap="${data.conservative.roi.toFixed(1)}x to ${data.optimistic.roi.toFixed(1)}x return on investment"
+                           data-with-recap="${conservativeWithRecap.roi.toFixed(1)}x to ${optimisticWithRecap.roi.toFixed(1)}x return on investment">
+                            ${showRecap ? `${conservativeWithRecap.roi.toFixed(1)}x to ${optimisticWithRecap.roi.toFixed(1)}x return on investment` : `${data.conservative.roi.toFixed(1)}x to ${data.optimistic.roi.toFixed(1)}x return on investment`}
+                        </p>
+                    </div>
+
+                    <div class="scenario-comparison">
+                        <div class="scenario-card">
+                            <h3>Conservative Scenario</h3>
+                            <p style="text-align: center; color: var(--gray); margin-bottom: 1.5rem;">
+                                ${data.conservative.mins} minutes saved per action
+                            </p>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Weekly Hours Saved</span>
+                                <span class="scenario-metric-value">${data.conservative.weeklyHours.toLocaleString(0)}</span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Monthly Hours Saved</span>
+                                <span class="scenario-metric-value">${data.conservative.monthlyHours.toLocaleString(0)}</span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Monthly Value</span>
+                                <span class="scenario-metric-value" id="conservativeMonthlyValueSales"
+                                     data-without-recap="$${data.conservative.monthlyValue.toLocaleString(0)}"
+                                     data-with-recap="$${conservativeWithRecap.monthlyValue.toLocaleString(0)}">
+                                    ${showRecap ? `$${conservativeWithRecap.monthlyValue.toLocaleString(0)}` : `$${data.conservative.monthlyValue.toLocaleString(0)}`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Annual Value</span>
+                                <span class="scenario-metric-value" id="conservativeAnnualValueSales"
+                                     data-without-recap="$${data.conservative.annualValue.toLocaleString(0)}"
+                                     data-with-recap="$${conservativeWithRecap.annualValue.toLocaleString(0)}">
+                                    ${showRecap ? `$${conservativeWithRecap.annualValue.toLocaleString(0)}` : `$${data.conservative.annualValue.toLocaleString(0)}`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric" style="background: var(--light-gray); margin-top: 1rem; padding: 1rem; border-radius: 6px;">
+                                <span class="scenario-metric-label" style="font-weight: bold;">ROI Multiple</span>
+                                <span class="scenario-metric-value" id="conservativeROISales" style="color: var(--green); font-size: 1.5rem;"
+                                     data-without-recap="${data.conservative.roi.toFixed(1)}x"
+                                     data-with-recap="${conservativeWithRecap.roi.toFixed(1)}x">
+                                    ${showRecap ? `${conservativeWithRecap.roi.toFixed(1)}x` : `${data.conservative.roi.toFixed(1)}x`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Payback Period</span>
+                                <span class="scenario-metric-value" id="conservativePaybackSales"
+                                     data-without-recap="${data.conservative.payback.toFixed(1)} mo"
+                                     data-with-recap="${conservativeWithRecap.payback.toFixed(1)} mo">
+                                    ${showRecap ? `${conservativeWithRecap.payback.toFixed(1)} mo` : `${data.conservative.payback.toFixed(1)} mo`}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="scenario-card highlight">
+                            <h3>Base Scenario (Recommended)</h3>
+                            <p style="text-align: center; color: var(--gray); margin-bottom: 1.5rem;">
+                                ${data.base.mins} minutes saved per action
+                            </p>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Weekly Hours Saved</span>
+                                <span class="scenario-metric-value">${data.base.weeklyHours.toLocaleString(0)}</span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Monthly Hours Saved</span>
+                                <span class="scenario-metric-value">${data.base.monthlyHours.toLocaleString(0)}</span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Monthly Value</span>
+                                <span class="scenario-metric-value" id="baseMonthlyValueSales"
+                                     data-without-recap="$${data.base.monthlyValue.toLocaleString(0)}"
+                                     data-with-recap="$${baseWithRecap.monthlyValue.toLocaleString(0)}">
+                                    ${showRecap ? `$${baseWithRecap.monthlyValue.toLocaleString(0)}` : `$${data.base.monthlyValue.toLocaleString(0)}`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Annual Value</span>
+                                <span class="scenario-metric-value" id="baseAnnualValueSales"
+                                     data-without-recap="$${data.base.annualValue.toLocaleString(0)}"
+                                     data-with-recap="$${baseWithRecap.annualValue.toLocaleString(0)}">
+                                    ${showRecap ? `$${baseWithRecap.annualValue.toLocaleString(0)}` : `$${data.base.annualValue.toLocaleString(0)}`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric" style="background: var(--copilot-orange); color: var(--white); margin-top: 1rem; padding: 1rem; border-radius: 6px;">
+                                <span class="scenario-metric-label" style="font-weight: bold; color: var(--white);">ROI Multiple</span>
+                                <span class="scenario-metric-value" id="baseROISales" style="color: var(--white); font-size: 1.5rem;"
+                                     data-without-recap="${data.base.roi.toFixed(1)}x"
+                                     data-with-recap="${baseWithRecap.roi.toFixed(1)}x">
+                                    ${showRecap ? `${baseWithRecap.roi.toFixed(1)}x` : `${data.base.roi.toFixed(1)}x`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Payback Period</span>
+                                <span class="scenario-metric-value" id="basePaybackSales"
+                                     data-without-recap="${data.base.payback.toFixed(1)} mo"
+                                     data-with-recap="${baseWithRecap.payback.toFixed(1)} mo">
+                                    ${showRecap ? `${baseWithRecap.payback.toFixed(1)} mo` : `${data.base.payback.toFixed(1)} mo`}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="scenario-card">
+                            <h3>Optimistic Scenario</h3>
+                            <p style="text-align: center; color: var(--gray); margin-bottom: 1.5rem;">
+                                ${data.optimistic.mins} minutes saved per action
+                            </p>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Weekly Hours Saved</span>
+                                <span class="scenario-metric-value">${data.optimistic.weeklyHours.toLocaleString(0)}</span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Monthly Hours Saved</span>
+                                <span class="scenario-metric-value">${data.optimistic.monthlyHours.toLocaleString(0)}</span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Monthly Value</span>
+                                <span class="scenario-metric-value" id="optimisticMonthlyValueSales"
+                                     data-without-recap="$${data.optimistic.monthlyValue.toLocaleString(0)}"
+                                     data-with-recap="$${optimisticWithRecap.monthlyValue.toLocaleString(0)}">
+                                    ${showRecap ? `$${optimisticWithRecap.monthlyValue.toLocaleString(0)}` : `$${data.optimistic.monthlyValue.toLocaleString(0)}`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Annual Value</span>
+                                <span class="scenario-metric-value" id="optimisticAnnualValueSales"
+                                     data-without-recap="$${data.optimistic.annualValue.toLocaleString(0)}"
+                                     data-with-recap="$${optimisticWithRecap.annualValue.toLocaleString(0)}">
+                                    ${showRecap ? `$${optimisticWithRecap.annualValue.toLocaleString(0)}` : `$${data.optimistic.annualValue.toLocaleString(0)}`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric" style="background: var(--light-gray); margin-top: 1rem; padding: 1rem; border-radius: 6px;">
+                                <span class="scenario-metric-label" style="font-weight: bold;">ROI Multiple</span>
+                                <span class="scenario-metric-value" id="optimisticROISales" style="color: var(--green); font-size: 1.5rem;"
+                                     data-without-recap="${data.optimistic.roi.toFixed(1)}x"
+                                     data-with-recap="${optimisticWithRecap.roi.toFixed(1)}x">
+                                    ${showRecap ? `${optimisticWithRecap.roi.toFixed(1)}x` : `${data.optimistic.roi.toFixed(1)}x`}
+                                </span>
+                            </div>
+
+                            <div class="scenario-metric">
+                                <span class="scenario-metric-label">Payback Period</span>
+                                <span class="scenario-metric-value" id="optimisticPaybackSales"
+                                     data-without-recap="${data.optimistic.payback.toFixed(1)} mo"
+                                     data-with-recap="${optimisticWithRecap.payback.toFixed(1)} mo">
+                                    ${showRecap ? `${optimisticWithRecap.payback.toFixed(1)} mo` : `${data.optimistic.payback.toFixed(1)} mo`}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="assumptions-box">
+                        <h4>Calculation Assumptions</h4>
+                        <ul>
+                            <li><strong>Licensed Users:</strong> ${data.licensedUsers.toLocaleString()} users</li>
+                            <li><strong>Activation Rate:</strong> ${data.activationRate.toFixed(0)}% (${data.activeUsers.toLocaleString()} active users)</li>
+                            <li><strong>Usage Pattern:</strong> ${data.actionsPerWeek} Copilot actions per user per week</li>
+                            <li><strong>License Cost:</strong> $${data.licenseCost}/user/month = $${data.monthlyCost.toLocaleString(0)}/month total</li>
+                            <li><strong>Annual Investment:</strong> $${data.annualCost.toLocaleString(0)}</li>
+                            <li><strong>Professional Rate:</strong> $${data.professionalRate}/hour (fully-loaded cost)</li>
+                            <li><strong>Time Savings:</strong> Conservative (${data.conservative.mins} min), Base (${data.base.mins} min), Optimistic (${data.optimistic.mins} min) per action</li>
+                            <li><strong>ROI Calculation:</strong> Monthly productivity value ÷ monthly license cost</li>
+                            <li><strong>Payback Period:</strong> Annual license cost ÷ monthly value generated</li>
+                        </ul>
+                    </div>
+
+                    <div class="roi-table-container">
+                        <h2>Value Breakdown by Scenario</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Scenario</th>
+                                    <th>Time per Action</th>
+                                    <th>Monthly Hours</th>
+                                    <th>Monthly Value</th>
+                                    <th>Annual Value</th>
+                                    <th>ROI Multiple</th>
+                                    <th>Payback</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Conservative</strong></td>
+                                    <td>${data.conservative.mins} min</td>
+                                    <td>${data.conservative.monthlyHours.toLocaleString(0)} hrs</td>
+                                    <td id="tableConservativeMonthlySales"
+                                        data-without-recap="$${data.conservative.monthlyValue.toLocaleString(0)}"
+                                        data-with-recap="$${conservativeWithRecap.monthlyValue.toLocaleString(0)}">
+                                        ${showRecap ? `$${conservativeWithRecap.monthlyValue.toLocaleString(0)}` : `$${data.conservative.monthlyValue.toLocaleString(0)}`}
+                                    </td>
+                                    <td id="tableConservativeAnnualSales"
+                                        data-without-recap="$${data.conservative.annualValue.toLocaleString(0)}"
+                                        data-with-recap="$${conservativeWithRecap.annualValue.toLocaleString(0)}">
+                                        ${showRecap ? `$${conservativeWithRecap.annualValue.toLocaleString(0)}` : `$${data.conservative.annualValue.toLocaleString(0)}`}
+                                    </td>
+                                    <td id="tableConservativeROISales" style="color: var(--green); font-weight: bold;"
+                                        data-without-recap="${data.conservative.roi.toFixed(1)}x"
+                                        data-with-recap="${conservativeWithRecap.roi.toFixed(1)}x">
+                                        ${showRecap ? `${conservativeWithRecap.roi.toFixed(1)}x` : `${data.conservative.roi.toFixed(1)}x`}
+                                    </td>
+                                    <td id="tableConservativePaybackSales"
+                                        data-without-recap="${data.conservative.payback.toFixed(1)} mo"
+                                        data-with-recap="${conservativeWithRecap.payback.toFixed(1)} mo">
+                                        ${showRecap ? `${conservativeWithRecap.payback.toFixed(1)} mo` : `${data.conservative.payback.toFixed(1)} mo`}
+                                    </td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td><strong>Base (Recommended)</strong></td>
+                                    <td>${data.base.mins} min</td>
+                                    <td>${data.base.monthlyHours.toLocaleString(0)} hrs</td>
+                                    <td id="tableBaseMonthlySales"
+                                        data-without-recap="$${data.base.monthlyValue.toLocaleString(0)}"
+                                        data-with-recap="$${baseWithRecap.monthlyValue.toLocaleString(0)}">
+                                        ${showRecap ? `$${baseWithRecap.monthlyValue.toLocaleString(0)}` : `$${data.base.monthlyValue.toLocaleString(0)}`}
+                                    </td>
+                                    <td id="tableBaseAnnualSales"
+                                        data-without-recap="$${data.base.annualValue.toLocaleString(0)}"
+                                        data-with-recap="$${baseWithRecap.annualValue.toLocaleString(0)}">
+                                        ${showRecap ? `$${baseWithRecap.annualValue.toLocaleString(0)}` : `$${data.base.annualValue.toLocaleString(0)}`}
+                                    </td>
+                                    <td id="tableBaseROISales" style="color: var(--green); font-weight: bold;"
+                                        data-without-recap="${data.base.roi.toFixed(1)}x"
+                                        data-with-recap="${baseWithRecap.roi.toFixed(1)}x">
+                                        ${showRecap ? `${baseWithRecap.roi.toFixed(1)}x` : `${data.base.roi.toFixed(1)}x`}
+                                    </td>
+                                    <td id="tableBasePaybackSales"
+                                        data-without-recap="${data.base.payback.toFixed(1)} mo"
+                                        data-with-recap="${baseWithRecap.payback.toFixed(1)} mo">
+                                        ${showRecap ? `${baseWithRecap.payback.toFixed(1)} mo` : `${data.base.payback.toFixed(1)} mo`}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Optimistic</strong></td>
+                                    <td>${data.optimistic.mins} min</td>
+                                    <td>${data.optimistic.monthlyHours.toLocaleString(0)} hrs</td>
+                                    <td id="tableOptimisticMonthlySales"
+                                        data-without-recap="$${data.optimistic.monthlyValue.toLocaleString(0)}"
+                                        data-with-recap="$${optimisticWithRecap.monthlyValue.toLocaleString(0)}">
+                                        ${showRecap ? `$${optimisticWithRecap.monthlyValue.toLocaleString(0)}` : `$${data.optimistic.monthlyValue.toLocaleString(0)}`}
+                                    </td>
+                                    <td id="tableOptimisticAnnualSales"
+                                        data-without-recap="$${data.optimistic.annualValue.toLocaleString(0)}"
+                                        data-with-recap="$${optimisticWithRecap.annualValue.toLocaleString(0)}">
+                                        ${showRecap ? `$${optimisticWithRecap.annualValue.toLocaleString(0)}` : `$${data.optimistic.annualValue.toLocaleString(0)}`}
+                                    </td>
+                                    <td id="tableOptimisticROISales" style="color: var(--green); font-weight: bold;"
+                                        data-without-recap="${data.optimistic.roi.toFixed(1)}x"
+                                        data-with-recap="${optimisticWithRecap.roi.toFixed(1)}x">
+                                        ${showRecap ? `${optimisticWithRecap.roi.toFixed(1)}x` : `${data.optimistic.roi.toFixed(1)}x`}
+                                    </td>
+                                    <td id="tableOptimisticPaybackSales"
+                                        data-without-recap="${data.optimistic.payback.toFixed(1)} mo"
+                                        data-with-recap="${optimisticWithRecap.payback.toFixed(1)} mo">
+                                        ${showRecap ? `${optimisticWithRecap.payback.toFixed(1)} mo` : `${data.optimistic.payback.toFixed(1)} mo`}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="info-box" style="margin-top: 2rem;">
+                        <strong>Sales Guidance</strong>
+                        <p>
+                            • <strong>Lead with the Base Scenario:</strong> 6 minutes per action is backed by Microsoft research and industry averages<br>
+                            • <strong>Show the range:</strong> Conservative to Optimistic demonstrates realistic bounds based on adoption<br>
+                            • <strong>Emphasize quick payback:</strong> ${data.base.payback.toFixed(1)} month payback period means rapid value realization<br>
+                            • <strong>ROI multiple:</strong> ${data.base.roi.toFixed(1)}x return shows compelling business case<br>
+                            • <strong>Customize for industry:</strong> Adjust professional rate to match customer's sector<br>
+                            • <strong>Scale with confidence:</strong> These projections are based on real-world deployment patterns
+                        </p>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
+                        <button class="btn-secondary" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">← Modify Inputs</button>
+                        <button class="btn-secondary" onclick="window.print()">Print Projections</button>
+                        <button class="btn-primary" onclick="exportToEmail()">Email to Customer</button>
+                    </div>
+                </div>
+            `;
+
+            resultsSection.innerHTML = html;
+            resultsSection.style.display = 'block';
+
+            // Smooth scroll to results
+            setTimeout(() => {
+                resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        // Email export function
+        function exportToEmail() {
+            const companyName = document.getElementById('companyName').value || 'Customer Organization';
+
+            const subject = encodeURIComponent(`M365 Copilot Productivity ROI Projection for ${companyName}`);
+            const body = encodeURIComponent(`Hi,
+
+I've prepared a Copilot ROI projection for ${companyName} based on our discussion.
+
+Please see the attached analysis showing projected annual returns ranging from conservative to optimistic scenarios.
+
+Best regards`);
+
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        // Toggle Intelligent Recap display for Sales Calculator
+        function toggleRecapDisplaySales() {
+            const toggle = document.getElementById('recapToggleSales');
+            const statusText = document.getElementById('recapToggleStatusSales');
+            const isIncluded = toggle.checked;
+
+            // Update status text
+            statusText.textContent = isIncluded ? 'Included' : 'Excluded';
+
+            // Get all elements that need updating
+            const elementsToUpdate = [
+                'roiRangeValueSales',
+                'roiMultipleTextSales',
+                'conservativeMonthlyValueSales',
+                'conservativeAnnualValueSales',
+                'conservativeROISales',
+                'conservativePaybackSales',
+                'baseMonthlyValueSales',
+                'baseAnnualValueSales',
+                'baseROISales',
+                'basePaybackSales',
+                'optimisticMonthlyValueSales',
+                'optimisticAnnualValueSales',
+                'optimisticROISales',
+                'optimisticPaybackSales',
+                'tableConservativeMonthlySales',
+                'tableConservativeAnnualSales',
+                'tableConservativeROISales',
+                'tableConservativePaybackSales',
+                'tableBaseMonthlySales',
+                'tableBaseAnnualSales',
+                'tableBaseROISales',
+                'tableBasePaybackSales',
+                'tableOptimisticMonthlySales',
+                'tableOptimisticAnnualSales',
+                'tableOptimisticROISales',
+                'tableOptimisticPaybackSales'
+            ];
+
+            // Update each element based on toggle state
+            elementsToUpdate.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    const valueToShow = isIncluded ?
+                        element.getAttribute('data-with-recap') :
+                        element.getAttribute('data-without-recap');
+                    element.textContent = valueToShow;
+                }
+            });
+        }
+    </script>
+
+    <!-- JavaScript for Adoption Journey -->
+    <script>
+        // Generate monthly projection data
+        function generateMonthlyData(minsPerAction = 6) {
+            const licensedUsers = 1000;
+            const licenseCost = 32;
+            const professionalRate = 78;
+
+            const months = [];
+
+            for (let month = 1; month <= 12; month++) {
+                let activationRate, actionsPerWeek;
+
+                // Phase-based progression
+                if (month <= 2) {
+                    // Baseline
+                    activationRate = 0.35 + (month * 0.075); // 42.5% to 50%
+                    actionsPerWeek = 9 + (month * 1.5); // 10.5 to 12
+                } else if (month <= 4) {
+                    // Growth
+                    activationRate = 0.50 + ((month - 2) * 0.10); // 60% to 70%
+                    actionsPerWeek = 12 + ((month - 2) * 3); // 15 to 18
+                } else if (month <= 6) {
+                    // Maturity
+                    activationRate = 0.70 + ((month - 4) * 0.10); // 80% to 90%
+                    actionsPerWeek = 18 + ((month - 4) * 5); // 23 to 28
+                } else {
+                    // Sustained maturity
+                    activationRate = 0.90 + Math.min((month - 6) * 0.01, 0.05); // 90-95%
+                    actionsPerWeek = 28 + Math.min((month - 6) * 2, 10); // 28-38
+                }
+
+                const activeUsers = Math.round(licensedUsers * activationRate);
+                const weeklyActions = Math.round(activeUsers * actionsPerWeek);
+                const monthlyActions = Math.round(weeklyActions * 4.33);
+                const monthlyHours = (monthlyActions * minsPerAction) / 60;
+                const monthlyValue = monthlyHours * professionalRate;
+                const monthlyCost = licensedUsers * licenseCost;
+                const roiMultiple = monthlyValue / monthlyCost;
+
+                months.push({
+                    month,
+                    activeUsers,
+                    activationRate: activationRate * 100,
+                    weeklyActions,
+                    monthlyValue,
+                    roiMultiple
+                });
+            }
+
+            return months;
+        }
+
+        // Render monthly grid
+        function renderMonthlyGrid(minsPerAction = 6) {
+            const months = generateMonthlyData(minsPerAction);
+            const grid = document.getElementById('monthlyGrid');
+
+            grid.innerHTML = months.map(m => `
+                <div class="month-card">
+                    <div class="month-number">Month ${m.month}</div>
+                    <div class="month-value">$${(m.monthlyValue / 1000).toFixed(0)}K</div>
+                    <div class="month-roi">${m.roiMultiple.toFixed(1)}x ROI</div>
+                    <div style="font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem;">
+                        ${m.activationRate.toFixed(0)}% active<br>
+                        ${(m.weeklyActions / 1000).toFixed(1)}K actions/wk
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update projection estimate based on toggle
+        function updateProjectionEstimate() {
+            const toggle = document.getElementById('estimateToggle');
+            const label = document.getElementById('estimateLabel');
+            const description = document.getElementById('projectionDescription');
+
+            if (toggle.checked) {
+                // Conservative estimate (3 min/action)
+                label.textContent = 'Conservative Estimate (3 min/action - 50%)';
+                label.style.color = 'var(--copilot-orange)';
+                description.textContent = 'Based on 1,000 licensed users, $32/user/month, $78/hr professional rate, 3 min/action (conservative 50% estimate)';
+                renderMonthlyGrid(3);
+            } else {
+                // Base estimate (6 min/action)
+                label.textContent = 'Base Estimate (6 min/action)';
+                label.style.color = 'var(--copilot-blue)';
+                description.textContent = 'Based on 1,000 licensed users, $32/user/month, $78/hr professional rate, 6 min/action';
+                renderMonthlyGrid(6);
+            }
+        }
+    </script>
+
+    <!-- Export to PDF and Email functions -->
     <script>
         function exportToPDF() {
             const element = document.querySelector('.container');
             const opt = {
                 margin: 0.5,
-                filename: 'M365_Copilot_ROI_Analysis.pdf',
+                filename: 'M365_Copilot_ROI_Calculator.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
                     scale: 2,
@@ -255,17 +2333,8 @@
 
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Productivity ROI Analysis');
-            const body = encodeURIComponent('Please find attached the M365 Copilot Productivity ROI analysis. This report provides insights into productivity gains and return on investment.\n\nTo view the full interactive report, please visit: [Your URL Here]');
+            const body = encodeURIComponent('Please find information about M365 Copilot productivity ROI analysis. This report provides comprehensive insights into productivity gains, return on investment, and adoption journey.\n\nTo view the full interactive report, please visit: [Your URL Here]');
             window.location.href = `mailto:?subject=${subject}&body=${body}`;
-        }
-
-        function updateProfessionalRate() {
-            const industrySelect = document.getElementById('industry');
-            const professionalRateInput = document.getElementById('professionalRate');
-
-            if (industrySelect.value !== 'custom') {
-                professionalRateInput.value = industrySelect.value;
-            }
         }
     </script>
 </body>
