@@ -1195,7 +1195,7 @@ function toggleRecapDisplayData() {
 }
 
 // Download Local Package Function
-async function downloadLocalPackage() {
+async function downloadLocalPackage(event) {
     // Show progress message
     const originalContent = event.target.innerHTML;
     event.target.innerHTML = '<span class=\"action-icon\">⏳</span><span class=\"action-text\">Preparing...</span>';
