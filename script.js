@@ -2627,6 +2627,11 @@ async function exportToPptx() {
         );
 
         await pptx.writeFile({ fileName: 'Copilot_ROI_Analysis.pptx' });
+        
+        // Track download event in Microsoft Clarity
+        if (window.clarity) {
+            clarity('event', 'download_powerpoint_analysis');
+        }
     } catch (err) {
         console.error('PPTX export failed:', err);
         alert('PPTX export failed: ' + err.message);
@@ -3051,7 +3056,7 @@ async function exportExecutiveDeck() {
         s6.addText(`@ $${config.licenseCost}/mo`, { x: 8.60, y: py, w: 2.20, h: 0.55, fontSize: 13, fontFace: 'Calibri', color: TEXT, valign: 'middle' });
         s6.addText(actualRoi + 'x', { x: 10.70, y: py, w: 2.0, h: 0.55, fontSize: 24, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle', align: 'right' });
         s6.addText(`Users average ~${Math.round(avgActionsPerMonth)} actions/mo \u2014 far above the ${breakEvenActions.toFixed(1)} needed to break even at $${config.licenseCost}.`, {
-            x: 8.60, y: 5.20, w: 4.0, h: 1.2, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top'
+            x: 8.60, y: 3.60, w: 4.0, h: 1.2, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top'
         });
         s6.addText(`Methodology: ${config.minutesPerAction} minutes saved per Copilot action \u00d7 $${config.professionalRate}/hr fully-loaded professional rate`, {
             x: 0.60, y: 6.65, w: 12.10, h: 0.30, fontSize: 10, fontFace: 'Calibri', color: MUTED
@@ -3235,6 +3240,11 @@ async function exportExecutiveDeck() {
         );
 
         await pptx.writeFile({ fileName: 'Copilot_ROI_Executive_Deck.pptx' });
+        
+        // Track download event in Microsoft Clarity
+        if (window.clarity) {
+            clarity('event', 'download_executive_deck');
+        }
     } catch (err) {
         console.error('Executive Deck export failed:', err);
         alert('Executive Deck export failed: ' + err.message);
@@ -3485,6 +3495,11 @@ Visit: https://jordankingisalive.github.io/CopilotROICalculator/
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+
+        // Track download event in Microsoft Clarity
+        if (window.clarity) {
+            clarity('event', 'download_local_package');
+        }
 
         // Reset button
         if (btn) {
