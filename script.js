@@ -2701,7 +2701,7 @@ async function exportExecutiveDeck() {
                 x: 0.60, y: 0.55, w: 8.0, h: 0.30, fontSize: 11, fontFace: 'Calibri', color: CYAN, bold: true
             });
             slide.addText(headline, {
-                x: 0.60, y: 0.85, w: 12.20, h: 0.90, fontSize: 36, fontFace: 'Cambria', color: WHITE, bold: true, valign: 'top'
+                x: 0.60, y: 0.85, w: 12.20, h: 0.65, fontSize: 28, fontFace: 'Cambria', color: WHITE, bold: true, valign: 'top'
             });
         };
 
@@ -2902,7 +2902,7 @@ async function exportExecutiveDeck() {
         const chartLabels = top10.map(t => t.team.length > 22 ? t.team.slice(0, 20) + '\u2026' : t.team).reverse();
         const chartValues = top10.map(t => Math.round(t.monthlyValue)).reverse();
         s4.addChart(pptx.charts.BAR, [{ name: 'Monthly Value ($)', labels: chartLabels, values: chartValues }], {
-            x: 0.60, y: 1.75, w: 8.60, h: 5.0,
+            x: 0.60, y: 1.60, w: 8.60, h: 5.15,
             showTitle: false,
             showValue: true,
             valueFontSize: 8,
@@ -2922,7 +2922,7 @@ async function exportExecutiveDeck() {
         const topVal = top10.reduce((s, t) => s + t.monthlyValue, 0);
         const totalVal = sortedTeams.reduce((s, t) => s + t.monthlyValue, 0);
         const paretoShare = totalVal > 0 ? (topVal / totalVal * 100).toFixed(0) : '?';
-        s4.addShape(pptx.shapes.RECTANGLE, { x: 9.45, y: 1.75, w: 3.30, h: 5.0, fill: { color: CARD } });
+        s4.addShape(pptx.shapes.RECTANGLE, { x: 9.45, y: 1.60, w: 3.30, h: 5.15, fill: { color: CARD } });
         s4.addText('THE PARETO SIGNAL', { x: 9.65, y: 1.90, w: 3.0, h: 0.35, fontSize: 12, fontFace: 'Calibri', color: MUTED, bold: true });
         s4.addText(fmtM(topVal), { x: 9.65, y: 2.30, w: 3.0, h: 0.70, fontSize: 36, fontFace: 'Cambria', color: GREEN, bold: true });
         s4.addText(`monthly value from the top ${Math.min(10, rows.length)} ${groupLabel}`, { x: 9.65, y: 3.00, w: 3.0, h: 0.50, fontSize: 12, fontFace: 'Calibri', color: TEXT });
@@ -3046,7 +3046,7 @@ async function exportExecutiveDeck() {
             { label: '@ $24/mo', cost: 24 },
             { label: `Current @ $${config.licenseCost}`, cost: config.licenseCost },
         ];
-        s6.addShape(pptx.shapes.RECTANGLE, { x: 8.40, y: 1.80, w: 4.35, h: 4.70, fill: { color: CARD } });
+        s6.addShape(pptx.shapes.RECTANGLE, { x: 8.40, y: 1.60, w: 4.35, h: 4.90, fill: { color: CARD } });
         s6.addText('YOUR ACTUAL ROI', { x: 8.60, y: 1.95, w: 4.0, h: 0.35, fontSize: 12, fontFace: 'Calibri', color: MUTED, bold: true });
         pricePoints.forEach((pp, i) => {
             const py = 2.45 + i * 0.65;
@@ -3058,7 +3058,7 @@ async function exportExecutiveDeck() {
             }
         });
         s6.addText(`Users average ~${Math.round(avgActionsPerMonth)} actions/mo \u2014 far above the ${breakEvenActions.toFixed(1)} needed to break even at $${config.licenseCost}.`, {
-            x: 8.60, y: 5.40, w: 4.0, h: 1.0, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top'
+            x: 8.60, y: 5.20, w: 4.0, h: 1.2, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top'
         });
         s6.addText(`Methodology: ${config.minutesPerAction} minutes saved per Copilot action \u00d7 $${config.professionalRate}/hr fully-loaded professional rate`, {
             x: 0.60, y: 6.65, w: 12.10, h: 0.30, fontSize: 10, fontFace: 'Calibri', color: MUTED
@@ -3085,7 +3085,7 @@ async function exportExecutiveDeck() {
         addSectionHeader(s7, 'UNLICENSED USER OPPORTUNITY COST', `Each 1,000 unlicensed seats leaves $${fmt(Math.round(annualOpp))}/year on the table`);
 
         // Left big callout
-        s7.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: 1.80, w: 6.0, h: 4.95, fill: { color: CARD } });
+        s7.addShape(pptx.shapes.RECTANGLE, { x: 0.60, y: 1.60, w: 6.0, h: 5.15, fill: { color: CARD } });
         s7.addText('ANNUAL OPPORTUNITY', { x: 0.85, y: 2.00, w: 5.50, h: 0.40, fontSize: 12, fontFace: 'Calibri', color: CYAN, bold: true });
         s7.addText('$' + fmt(Math.round(annualOpp)), { x: 0.85, y: 2.50, w: 5.50, h: 1.60, fontSize: 70, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle' });
         s7.addText(`Per 1,000 unlicensed users  \u2022  $${fmt(Math.round(netGainPer1000))} net gain / month`, { x: 0.85, y: 4.20, w: 5.50, h: 0.50, fontSize: 14, fontFace: 'Calibri', color: TEXT });
@@ -3101,7 +3101,7 @@ async function exportExecutiveDeck() {
             { label: 'NET GAIN / MO', value: '$' + fmt(Math.round(netGainPer1000)), sub: `$${fmt(Math.round(valPer1000))}  \u2212  $${fmt(costPer1000)}`, valueColor: GREEN },
         ];
         rightCards.forEach((rc, i) => {
-            const ry = 1.80 + i * 1.70;
+            const ry = 1.60 + i * 1.70;
             s7.addShape(pptx.shapes.RECTANGLE, { x: rightX, y: ry, w: rightW, h: rightCardH, fill: { color: CARD } });
             s7.addText(rc.label, { x: rightX + 0.25, y: ry + 0.20, w: rightW - 0.5, h: 0.35, fontSize: 10, fontFace: 'Calibri', color: MUTED, bold: true });
             s7.addText(rc.value, { x: rightX + 0.25, y: ry + 0.55, w: rightW - 0.5, h: 0.55, fontSize: 36, fontFace: 'Cambria', color: rc.valueColor, bold: true });
@@ -3143,7 +3143,7 @@ async function exportExecutiveDeck() {
             return Math.round(projValue / projCost * 10) / 10;
         });
         s8.addChart(pptx.charts.BAR, [{ name: 'Projected ROI', labels: scenLabels, values: scenValues }], {
-            x: 0.60, y: 1.80, w: 8.40, h: 4.40,
+            x: 0.60, y: 1.60, w: 8.40, h: 4.60,
             showTitle: false,
             showValue: true,
             valueFontSize: 10,
@@ -3160,7 +3160,7 @@ async function exportExecutiveDeck() {
         });
 
         // Projection sidebar
-        s8.addShape(pptx.shapes.RECTANGLE, { x: 9.20, y: 1.80, w: 3.55, h: 4.40, fill: { color: CARD } });
+        s8.addShape(pptx.shapes.RECTANGLE, { x: 9.20, y: 1.60, w: 3.55, h: 4.60, fill: { color: CARD } });
         s8.addText('PROJECTED ROI', { x: 9.40, y: 1.95, w: 3.20, h: 0.35, fontSize: 12, fontFace: 'Calibri', color: MUTED, bold: true });
         scenarios.forEach((sc, i) => {
             const sy = 2.40 + i * 0.72;
