@@ -750,18 +750,19 @@ details.collapsible-section:not([open]) .toggle-chevron {
     letter-spacing: 1px;
     text-transform: uppercase;
     margin-bottom: 0.5rem;
+    color: #0F172A;
 }
 
 .phase-card.baseline .phase-badge {
-    color: var(--copilot-cyan);
+    color: #0F172A;
 }
 
 .phase-card.growth .phase-badge {
-    color: var(--copilot-orange);
+    color: #0F172A;
 }
 
 .phase-card.maturity .phase-badge {
-    color: var(--green);
+    color: #0F172A;
 }
 
 .phase-timeframe {
