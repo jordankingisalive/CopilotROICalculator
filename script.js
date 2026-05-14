@@ -3043,24 +3043,13 @@ async function exportExecutiveDeck() {
             plotArea: { fill: { color: BG } },
         });
 
-        // Pricing sidebar
-        const pricePoints = [
-            { label: '@ $9/mo', cost: 9 },
-            { label: '@ $15/mo', cost: 15 },
-            { label: '@ $24/mo', cost: 24 },
-            { label: `Current @ $${config.licenseCost}`, cost: config.licenseCost },
-        ];
-        s6.addShape(pptx.shapes.RECTANGLE, { x: 8.40, y: 1.60, w: 4.35, h: 4.90, fill: { color: CARD } });
+        // Pricing sidebar - showing user's actual license cost only
+        const actualRoi = config.licenseCost > 0 ? (monthlyValuePerUser / config.licenseCost).toFixed(1) : '?';
+        s6.addShape(pptx.shapes.RECTANGLE, { x: 8.40, y: 1.60, w: 4.35, h: 2.50, fill: { color: CARD } });
         s6.addText('YOUR ACTUAL ROI', { x: 8.60, y: 1.95, w: 4.0, h: 0.35, fontSize: 12, fontFace: 'Calibri', color: MUTED, bold: true });
-        pricePoints.forEach((pp, i) => {
-            const py = 2.45 + i * 0.65;
-            const ppRoi = pp.cost > 0 ? (monthlyValuePerUser / pp.cost).toFixed(1) : '?';
-            s6.addText(pp.label, { x: 8.60, y: py, w: 2.20, h: 0.55, fontSize: 13, fontFace: 'Calibri', color: TEXT, valign: 'middle' });
-            s6.addText(ppRoi + 'x', { x: 10.70, y: py, w: 2.0, h: 0.55, fontSize: 18, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle', align: 'right' });
-            if (i < pricePoints.length - 1) {
-                s6.addShape(pptx.shapes.RECTANGLE, { x: 8.60, y: py + 0.55, w: 4.0, h: 0.02, fill: { color: CARD_ALT } });
-            }
-        });
+        const py = 2.45;
+        s6.addText(`@ $${config.licenseCost}/mo`, { x: 8.60, y: py, w: 2.20, h: 0.55, fontSize: 13, fontFace: 'Calibri', color: TEXT, valign: 'middle' });
+        s6.addText(actualRoi + 'x', { x: 10.70, y: py, w: 2.0, h: 0.55, fontSize: 24, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle', align: 'right' });
         s6.addText(`Users average ~${Math.round(avgActionsPerMonth)} actions/mo \u2014 far above the ${breakEvenActions.toFixed(1)} needed to break even at $${config.licenseCost}.`, {
             x: 8.60, y: 5.20, w: 4.0, h: 1.2, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top'
         });
