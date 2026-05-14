@@ -1234,10 +1234,10 @@ async function downloadLocalPackage(event) {
                     const blob = await response.blob();
                     zip.file(file, blob);
                     completed++;
-                    event.target.innerHTML = \<span class=\"action-icon\">📦</span><span class=\"action-text\">Packing \/\</span>\;
+                    event.target.innerHTML = `<span class="action-icon">📦</span><span class="action-text">Packing ${completed}/${files.length}</span>`;
                 }
             } catch (err) {
-                console.warn(\Failed to fetch \:\, err);
+                console.warn(`Failed to fetch ${file}:`, err);
             }
         }
 
