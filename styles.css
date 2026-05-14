@@ -705,6 +705,106 @@ details.collapsible-section:not([open]) .toggle-chevron {
     background: transparent;
 }
 
+/* Adoption Journey Phase Cards */
+.timeline-visual {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.phase-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px var(--shadow);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.phase-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(74, 158, 247, 0.15);
+}
+
+.phase-card.baseline {
+    border-top: 3px solid var(--copilot-cyan);
+}
+
+.phase-card.growth {
+    border-top: 3px solid var(--copilot-orange);
+}
+
+.phase-card.maturity {
+    border-top: 3px solid var(--green);
+}
+
+.phase-header {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.phase-badge {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.phase-card.baseline .phase-badge {
+    color: var(--copilot-cyan);
+}
+
+.phase-card.growth .phase-badge {
+    color: var(--copilot-orange);
+}
+
+.phase-card.maturity .phase-badge {
+    color: var(--green);
+}
+
+.phase-timeframe {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.phase-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.phase-metrics .metric-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.phase-metrics .metric-row:last-child {
+    border-bottom: none;
+}
+
+.phase-metrics .metric-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.phase-metrics .metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--copilot-cyan), var(--copilot-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+}
+
 /* All print styles consolidated below */
 
 /* Glossary */
