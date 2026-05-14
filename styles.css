@@ -468,8 +468,6 @@ header h1 {
     border: 1px solid var(--border);
     border-top: 3px solid var(--copilot-blue);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    container-type: inline-size;
-    overflow: visible;
 }
 
 .metric-card:hover {
@@ -478,16 +476,13 @@ header h1 {
 }
 
 .metric-value {
-    font-size: clamp(1.1rem, 12cqi, 2.5rem);
+    font-size: 2.5rem;
     font-weight: bold;
     background: linear-gradient(135deg, var(--copilot-cyan), var(--copilot-blue));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     margin: 0.5rem 0;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    line-height: 1.2;
 }
 
 .metric-label {
@@ -503,71 +498,6 @@ header h1 {
     margin-top: 0.5rem;
 }
 
-/* Metric Tooltips */
-.metric-label-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-}
-
-.info-tip {
-    position: relative;
-    display: inline-flex;
-    cursor: help;
-}
-
-.info-tip .info-icon {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1.5px solid var(--text-secondary);
-    color: var(--text-secondary);
-    font-size: 11px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-}
-
-.info-tip:hover .info-icon {
-    border-color: var(--copilot-blue);
-    color: var(--copilot-blue);
-}
-
-.info-tip .tip-text {
-    display: none;
-}
-
-#global-tooltip {
-    position: fixed;
-    z-index: 99999;
-    background: var(--surface, #1E293B);
-    color: var(--text-primary, #F1F5F9);
-    padding: 12px 16px;
-    border-radius: 10px;
-    font-size: 0.82rem;
-    line-height: 1.5;
-    width: 260px;
-    max-width: 90vw;
-    text-align: left;
-    text-transform: none;
-    letter-spacing: normal;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border, rgba(255,255,255,0.08));
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s ease, visibility 0.15s ease;
-}
-
-#global-tooltip.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
 /* ROI Table */
 .roi-table-container {
     background: var(--surface);
@@ -576,7 +506,7 @@ header h1 {
     box-shadow: 0 4px 24px var(--shadow);
     border: 1px solid var(--border);
     margin-bottom: 2rem;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .roi-table-container h2 {
@@ -651,75 +581,42 @@ tr:hover {
     margin-bottom: 1.5rem;
 }
 
-/* Collapsible Sections */
-.collapsible-section {
-    background: var(--surface);
-    border-radius: 16px;
-    box-shadow: 0 4px 24px var(--shadow);
-    border: 1px solid var(--border);
-    margin-bottom: 2rem;
-}
-
-.section-toggle {
+.leaderboard-item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1.25rem 1.5rem;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--copilot-blue);
-    cursor: pointer;
-    list-style: none;
-    user-select: none;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
     transition: background 0.2s ease;
 }
 
-.section-toggle::-webkit-details-marker { display: none; }
-
-.section-toggle:hover {
+.leaderboard-item:hover {
     background: rgba(74, 158, 247, 0.06);
 }
 
-.toggle-chevron {
-    display: inline-block;
-    transition: transform 0.25s ease;
-    font-size: 1.1rem;
-}
-
-details.collapsible-section:not([open]) .toggle-chevron {
-    transform: rotate(-90deg);
-}
-
-.section-body {
-    padding: 0 1.5rem 1.5rem;
-}
-
-/* Remove double-boxing when roi-table-container / leaderboard-container is inside a collapsible */
-.collapsible-section .roi-table-container,
-.collapsible-section .leaderboard-container {
-    box-shadow: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-    border-radius: 0;
-    background: transparent;
-}
-
-/* All print styles consolidated below */
-
-/* Glossary */
-.glossary-table td:first-child {
-    white-space: nowrap;
-    width: 1%;
+.leaderboard-rank {
+    font-size: 1.5rem;
+    font-weight: bold;
     color: var(--copilot-cyan);
-    vertical-align: top;
-    padding-right: 1.5rem;
+    min-width: 40px;
 }
 
-.glossary-table td {
-    padding: 0.75rem 1rem;
-    font-size: 0.92rem;
-    line-height: 1.6;
+.leaderboard-name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.leaderboard-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--green);
+}
+
+.leaderboard-subvalue {
+    font-size: 0.9rem;
+    color: var(--gray);
+    margin-left: 1rem;
 }
 
 /* Footer */
@@ -793,50 +690,13 @@ input:checked + .toggle-slider:hover {
     box-shadow: 0 0 8px rgba(255, 140, 0, 0.4);
 }
 
-/* Time-Period Toggle Buttons */
-.time-toggle-btn {
-    padding: 0.4rem 0.9rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface);
-    color: var(--text-secondary);
-    font-size: 0.82rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-.time-toggle-btn:hover {
-    border-color: var(--copilot-cyan);
-    color: var(--copilot-cyan);
-}
-.time-toggle-btn.active {
-    background: linear-gradient(135deg, var(--copilot-blue), var(--copilot-cyan));
-    color: #0F172A;
-    border-color: transparent;
-    font-weight: 700;
-}
-
 /* Responsive Design */
-/* Consolidated Print Styles */
+/* PDF Export Styling */
 @media print {
-    details.collapsible-section:not([open]) .section-body {
-        display: none !important;
-    }
-    .section-toggle {
-        page-break-after: avoid;
-    }
-    .toggle-chevron {
-        display: none;
-    }
-
     .nav-buttons,
     .header-actions,
     .action-btn,
-    button,
-    .opp-slider-row,
-    .toggle-switch,
-    .opp-toggle-row,
-    input[type="range"] {
+    button {
         display: none !important;
     }
 

@@ -263,7 +263,6 @@
     </style>
 </head>
 <body>
-    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
     <div class="container journey-container">
         <header>
             <div class="header-content">
@@ -272,6 +271,14 @@
                     <p class="subtitle">Understanding the path to productivity growth and value realization</p>
                 </div>
                 <div class="header-actions">
+                    <button onclick="downloadLocalPackage()" class="action-btn" title="Download & Run Locally" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399;">
+                        <span class="action-icon">📦</span>
+                        <span class="action-text">Download Local</span>
+                    </button>
+                    <button onclick="exportToPDF()" class="action-btn" title="Export to PDF">
+                        <span class="action-icon">📄</span>
+                        <span class="action-text">Export PDF</span>
+                    </button>
                     <button onclick="emailReport()" class="action-btn" title="Share via Email">
                         <span class="action-icon">📧</span>
                         <span class="action-text">Email</span>
@@ -667,6 +674,32 @@
         // Initialize on load
         document.addEventListener('DOMContentLoaded', () => renderMonthlyGrid(6));
 
+        // Export to PDF function
+        function exportToPDF() {
+            const element = document.querySelector('.container');
+            const opt = {
+                margin: 0.5,
+                filename: 'M365_Copilot_Adoption_Journey.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                },
+                jsPDF: {
+                    unit: 'in',
+                    format: 'letter',
+                    orientation: 'portrait'
+                },
+                pagebreak: {
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    avoid: ['.phase-card', '.month-card', '.insight-card', '.scenario-card', 'img', '.timeline-visual', '.month-grid', '.metric-card']
+                }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
         // Email report function
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Adoption Journey & ROI Timeline');
@@ -690,5 +723,7 @@
             }
         }
     </script>
+    <script src="lib/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </body>
 </html>

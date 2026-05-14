@@ -361,7 +361,6 @@
     </style>
 </head>
 <body>
-    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
     <div class="container">
         <header>
             <div class="header-content">
@@ -370,6 +369,14 @@
                     <p class="subtitle">Project potential productivity value and growth opportunities</p>
                 </div>
                 <div class="header-actions">
+                    <button onclick="downloadLocalPackage()" class="action-btn" title="Download & Run Locally" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399;">
+                        <span class="action-icon">📦</span>
+                        <span class="action-text">Download Local</span>
+                    </button>
+                    <button onclick="exportToPDF()" class="action-btn" title="Export to PDF">
+                        <span class="action-icon">📄</span>
+                        <span class="action-text">Export PDF</span>
+                    </button>
                     <button onclick="emailReport()" class="action-btn" title="Share via Email">
                         <span class="action-icon">📧</span>
                         <span class="action-text">Email</span>
@@ -1039,6 +1046,7 @@ function renderResults(data) {
 
             <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
                 <button class="btn-secondary" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">← Modify Inputs</button>
+                <button class="btn-secondary" onclick="window.print()">Print Projections</button>
                 <button class="btn-primary" onclick="exportToEmail()">Email to Customer</button>
             </div>
         </div>
@@ -1097,7 +1105,34 @@ function toggleRecapDisplay() {
     });
 }
     </script>
+    <script src="lib/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
+        function exportToPDF() {
+            const element = document.querySelector('.container');
+            const opt = {
+                margin: 0.5,
+                filename: 'M365_Copilot_ROI_Projections.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                },
+                jsPDF: {
+                    unit: 'in',
+                    format: 'letter',
+                    orientation: 'portrait'
+                },
+                pagebreak: {
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    avoid: ['.phase-card', '.month-card', '.insight-card', '.scenario-card', 'img', '.timeline-visual', '.month-grid', '.metric-card']
+                }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Productivity ROI Projections');
             const body = encodeURIComponent('Please find information about M365 Copilot productivity projections. This analysis explores potential productivity gains and growth opportunities.\n\nFor the interactive calculator, please visit: [Your URL Here]');

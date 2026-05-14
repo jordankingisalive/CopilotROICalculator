@@ -4,22 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M365 Copilot Productivity ROI Calculator</title>
-    <link rel="stylesheet" href="styles.css?v=20">
+    <link rel="stylesheet" href="styles.css">
     <style>
+        details[open] > summary span:first-child { transform: rotate(90deg); }
         details summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body>
-    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
     <div class="container">
         <header>
             <div class="header-content">
                 <div>
                     <h1>M365 Copilot Productivity ROI Projections</h1>
                     <p class="subtitle">Transform your usage data into actionable insights</p>
-                    <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none; font-size: 0.95rem;">📊 View more reports on the Analytics Hub →</a></p>
                 </div>
                 <div class="header-actions">
+                    <button onclick="downloadLocalPackage()" class="action-btn" title="Download & Run Locally" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399;">
+                        <span class="action-icon">📦</span>
+                        <span class="action-text">Download Local</span>
+                    </button>
+                    <button onclick="exportToPDF()" class="action-btn" title="Export to PDF">
+                        <span class="action-icon">📄</span>
+                        <span class="action-text">Export PDF</span>
+                    </button>
                     <button onclick="emailReport()" class="action-btn" title="Share via Email">
                         <span class="action-icon">📧</span>
                         <span class="action-text">Email</span>
@@ -118,13 +125,7 @@
 
                             <div class="config-item">
                                 <label for="licenseCost">License Cost per User/Month (USD)</label>
-                                <input type="number" id="licensesCost" value="30" min="0" step="0.01">
-                            </div>
-
-                            <div class="config-item">
-                                <label for="totalPurchasedLicenses">Total Purchased Licenses</label>
-                                <input type="number" id="totalPurchasedLicenses" value="0" min="0" step="1">
-                                <small>Total licenses procured (including unassigned). Leave 0 to use enabled count from data.</small>
+                                <input type="number" id="licensesCost" value="32" min="0" step="0.01">
                             </div>
 
                             <div class="config-item">
@@ -219,12 +220,35 @@
         </footer>
     </div>
 
-    <script src="lib/jspdf.umd.min.js"></script>
-    <script src="lib/html2canvas.min.js"></script>
-    <script src="lib/docx.umd.js"></script>
-    <script src="lib/pptxgen.bundle.js"></script>
-    <script src="script.js?v=20"></script>
+    <script src="lib/jszip.min.js"></script>
+    <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
+        function exportToPDF() {
+            const element = document.querySelector('.container');
+            const opt = {
+                margin: 0.5,
+                filename: 'M365_Copilot_ROI_Analysis.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                },
+                jsPDF: {
+                    unit: 'in',
+                    format: 'letter',
+                    orientation: 'portrait'
+                },
+                pagebreak: {
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    avoid: ['.phase-card', '.month-card', '.insight-card', '.scenario-card', 'img', '.timeline-visual', '.month-grid', '.metric-card']
+                }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Productivity ROI Analysis');
             const body = encodeURIComponent('Please find attached the M365 Copilot Productivity ROI analysis. This report provides insights into productivity gains and return on investment.\n\nTo view the full interactive report, please visit: [Your URL Here]');
@@ -239,43 +263,6 @@
                 professionalRateInput.value = industrySelect.value;
             }
         }
-
-        // Global tooltip system — positions tooltip above-left of the ? icon using fixed positioning
-        (function() {
-            const tip = document.createElement('div');
-            tip.id = 'global-tooltip';
-            document.body.appendChild(tip);
-
-            document.addEventListener('mouseenter', function(e) {
-                const infoTip = e.target.closest('.info-tip');
-                if (!infoTip) return;
-                const textEl = infoTip.querySelector('.tip-text');
-                if (!textEl) return;
-
-                tip.textContent = textEl.textContent;
-                tip.classList.add('visible');
-
-                const rect = infoTip.getBoundingClientRect();
-                // Position: above and to the left of the ? icon
-                let top = rect.top - tip.offsetHeight - 8;
-                let left = rect.left - tip.offsetWidth + rect.width;
-
-                // Keep on screen
-                if (top < 8) top = rect.bottom + 8;
-                if (left < 8) left = 8;
-                if (left + tip.offsetWidth > window.innerWidth - 8) left = window.innerWidth - tip.offsetWidth - 8;
-
-                tip.style.top = top + 'px';
-                tip.style.left = left + 'px';
-            }, true);
-
-            document.addEventListener('mouseleave', function(e) {
-                const infoTip = e.target.closest('.info-tip');
-                if (!infoTip) return;
-                tip.classList.remove('visible');
-            }, true);
-        })();
-
     </script>
 </body>
 </html>
