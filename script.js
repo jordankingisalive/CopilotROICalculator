@@ -1209,6 +1209,7 @@ async function downloadLocalPackage(event) {
             'index.html',
             'roi-calculator.html',
             'Start Here.html',
+            'run-locally.html',
             'script.js',
             'sales-script.js',
             'styles.css',
