@@ -14,12 +14,27 @@
             y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
         })(window,document,"clarity","script","YOUR_CLARITY_PROJECT_ID");
     </script>
+    <script>
+        // Force service worker update and reload when new version is available
+        if('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                reg.onupdatefound = () => {
+                    const installingWorker = reg.installing;
+                    installingWorker.onstatechange = () => {
+                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New service worker available, reload to activate
+                            window.location.reload();
+                        }
+                    };
+                };
+            });
+        }
+    </script>
     <style>
         details summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body>
-    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
     <div class="container">
         <header>
             <div class="header-content">
