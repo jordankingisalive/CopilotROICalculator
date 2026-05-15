@@ -199,7 +199,12 @@
                             </svg>
                             <p><strong>Drop your CSV file here</strong></p>
                             <p>or</p>
-                            <button class="btn-primary" id="fileSelectBtn">Choose File</button>
+                            <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                                <button class="btn-primary" id="fileSelectBtn">Choose File</button>
+                                <button class="btn-primary" onclick="loadDemoData()" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399;">
+                                    🎯 Try Demo
+                                </button>
+                            </div>
                             <input type="file" id="fileInput" accept=".csv" style="display: none;">
                         </div>
 
