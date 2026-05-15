@@ -186,7 +186,7 @@ async function loadDemoReport() {
 
         // Update UI inputs
         document.getElementById('totalPurchasedLicenses').value = 4000;
-        document.getElementById('licenseCost').value = 30;
+        document.getElementById('licensesCost').value = 30;
         document.getElementById('minutesPerAction').value = 6;
         document.getElementById('professionalRate').value = 80;
         document.getElementById('intelligentRecapActions').value = 2000;
