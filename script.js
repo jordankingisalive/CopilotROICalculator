@@ -1644,20 +1644,20 @@ function renderResults() {
 
             ${showRecap ? `
             <!-- Intelligent Recap Toggle -->
-            <div class="recap-toggle-container" id="recapToggleContainer" style="display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 8px; margin: 1.5rem 0; border: 2px solid var(--copilot-blue);">
-                <span class="recap-toggle-label" style="font-weight: 600; color: var(--dark-blue); font-size: 1rem;">Include Intelligent Recap in ROI:</span>
+            <div class="recap-toggle-container" id="recapToggleContainer" style="display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 1rem; background: var(--surface, #1E293B); border-radius: 8px; margin: 1.5rem 0; border: 2px solid var(--copilot-blue);">
+                <span class="recap-toggle-label" style="font-weight: 600; color: var(--text-primary, #F1F5F9); font-size: 1rem;">Include Intelligent Recap in ROI:</span>
                 <label class="toggle-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
                     <input type="checkbox" id="recapToggleData" checked onchange="toggleRecapDisplayData()" style="opacity: 0; width: 0; height: 0;">
                     <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--copilot-blue); transition: 0.4s; border-radius: 30px;"></span>
                 </label>
-                <span class="recap-toggle-label" id="recapToggleStatusData" style="font-weight: 600; color: var(--dark-blue); font-size: 1rem;">Included</span>
+                <span class="recap-toggle-label" id="recapToggleStatusData" style="font-weight: 600; color: var(--copilot-cyan); font-size: 1rem;">Included</span>
             </div>
 
             <!-- Intelligent Recap Value Display -->
-            <div class="recap-value-box" id="recapValueBoxData" style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border: 2px solid var(--copilot-blue); border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center;">
-                <h4 style="color: var(--copilot-blue); margin-bottom: 0.5rem; font-size: 0.95rem;">💡 Intelligent Recap Additional Value</h4>
-                <div class="value" style="font-size: 2rem; font-weight: bold; color: var(--dark-blue);">$${recapMonthlyValue.toLocaleString(undefined, {maximumFractionDigits: 2})}/mo</div>
-                <small>${config.intelligentRecapActions.toLocaleString(undefined, {maximumFractionDigits: 2})} actions × 0.5 hours each = ${recapHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 2})} hours/mo</small>
+            <div class="recap-value-box" id="recapValueBoxData" style="background: var(--surface-raised, #253449); border: 2px solid var(--copilot-cyan); border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center;">
+                <h4 style="color: var(--copilot-cyan); margin-bottom: 0.5rem; font-size: 0.95rem;">💡 Intelligent Recap Additional Value</h4>
+                <div class="value" style="font-size: 2rem; font-weight: bold; color: var(--text-primary, #F1F5F9);">$${recapMonthlyValue.toLocaleString(undefined, {maximumFractionDigits: 2})}/mo</div>
+                <small style="color: var(--text-secondary, #94A3B8);">${config.intelligentRecapActions.toLocaleString(undefined, {maximumFractionDigits: 2})} actions × 0.5 hours each = ${recapHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 2})} hours/mo</small>
             </div>
             ` : ''}
 
