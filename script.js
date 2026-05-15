@@ -157,61 +157,61 @@ function handleFile(file) {
     reader.readAsText(file);
 }
 
-// Load demo data with pre-configured settings
-async function loadDemoData() {
+// Load pre-calculated demo report
+async function loadDemoReport() {
     try {
-        // Show loading state
-        const uploadArea = document.getElementById('uploadArea');
-        if (uploadArea) {
-            uploadArea.innerHTML = '<div style="padding: 2rem; text-align: center;"><div class="loading-spinner"></div><p style="margin-top: 1rem;">Loading demo data...</p></div>';
+        // Show loading overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'demoLoadingOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+        overlay.innerHTML = '<div class="loading-spinner"></div><p style="margin-top:1.5rem;font-size:1.2rem;color:var(--copilot-cyan);">Loading Groundhog Day Demo Report...</p>';
+        document.body.appendChild(overlay);
+
+        // Track demo usage in Clarity
+        if (window.clarity) {
+            clarity('event', 'demo_report_loaded');
         }
 
-        // Fetch the demo CSV file
+        // Fetch and parse demo data
         const response = await fetch('demo-data.csv');
-        if (!response.ok) {
-            throw new Error('Failed to load demo data');
-        }
+        if (!response.ok) throw new Error('Failed to load demo data');
         const csvData = await response.text();
 
-        // Pre-configure settings as specified
+        // Pre-configure settings
         config.totalPurchasedLicenses = 4000;
         config.licenseCost = 30;
         config.minutesPerAction = 6;
         config.professionalRate = 80;
         config.intelligentRecapActions = 2000;
 
-        // Update UI inputs to reflect demo config
+        // Update UI inputs
         document.getElementById('totalPurchasedLicenses').value = 4000;
         document.getElementById('licenseCost').value = 30;
         document.getElementById('minutesPerAction').value = 6;
         document.getElementById('professionalRate').value = 80;
         document.getElementById('intelligentRecapActions').value = 2000;
 
-        // Parse the CSV data
+        // Parse and calculate
         uploadedData = parseCSV(csvData);
         config.analysisWeeks = uploadedData.detectedWeeks || 26;
 
-        // Show file preview with demo badge
-        showFilePreview('📊 Demo Data (Groundhog Day)', uploadedData, true);
+        // Run full calculation automatically
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for effect
+        runCalculation();
 
-        // Track demo usage in Clarity
-        if (window.clarity) {
-            clarity('event', 'demo_data_loaded');
-        }
-
-        // Auto-scroll to the preview
+        // Remove overlay after calculation starts
         setTimeout(() => {
-            const preview = document.getElementById('filePreview');
-            if (preview) {
-                preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            if (document.getElementById('demoLoadingOverlay')) {
+                document.getElementById('demoLoadingOverlay').remove();
             }
-        }, 100);
+        }, 1000);
 
     } catch (error) {
-        console.error('Error loading demo data:', error);
-        showError('Failed to load demo data: ' + error.message);
-        // Restore upload area
-        location.reload();
+        console.error('Error loading demo report:', error);
+        if (document.getElementById('demoLoadingOverlay')) {
+            document.getElementById('demoLoadingOverlay').remove();
+        }
+        showError('Failed to load demo report: ' + error.message);
     }
 }
 

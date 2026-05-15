@@ -64,6 +64,26 @@
             </a>
         </nav>
 
+        <!-- Demo Button Section -->
+        <div style="max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 0 2rem;">
+            <button onclick="loadDemoReport()" class="btn-primary" style="
+                background: linear-gradient(135deg, #10b981, #059669);
+                border: 2px solid #34d399;
+                padding: 1rem 2rem;
+                font-size: 1.1rem;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin: 0 auto;
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            ">
+                <span style="font-size: 1.5rem;">🎯</span>
+                <span>View Demo Report</span>
+                <span style="font-size: 0.75rem; opacity: 0.9;">(Groundhog Day Organization)</span>
+            </button>
+        </div>
+
         <main>
             <section class="instructions-section">
                 <h2>Getting Started</h2>
@@ -199,12 +219,7 @@
                             </svg>
                             <p><strong>Drop your CSV file here</strong></p>
                             <p>or</p>
-                            <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
-                                <button class="btn-primary" id="fileSelectBtn">Choose File</button>
-                                <button class="btn-primary" onclick="loadDemoData()" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399;">
-                                    🎯 Try Demo
-                                </button>
-                            </div>
+                            <button class="btn-primary" id="fileSelectBtn">Choose File</button>
                             <input type="file" id="fileInput" accept=".csv" style="display: none;">
                         </div>
 
