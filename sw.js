@@ -1,4 +1,4 @@
-const CACHE_NAME = 'copilot-roi-v33';
+const CACHE_NAME = 'copilot-roi-v34';
 const ASSETS = [
     './',
     './index.html',

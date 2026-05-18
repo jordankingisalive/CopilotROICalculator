@@ -1985,6 +1985,11 @@ function renderResults() {
 
     // Initialize table sorting after rendering
     initTableSorting();
+    
+    // Initialize time period toggle to 'all' to ensure Key Metrics match the toggle state
+    if (hasTimePeriods) {
+        switchTimePeriod('all');
+    }
 }
 
 // Shared: prepare the container for capture (open sections, hide buttons, fix gradients)
