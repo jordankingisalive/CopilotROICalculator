@@ -2,6 +2,7 @@
 let uploadedData = null;
 let resultsDisplayed = false;
 let originalMinutesPerAction = null; // stores the user's default choice at first calculation
+let isDemoData = false; // tracks whether current data is demo or customer upload
 // Tooltip helper — returns inline HTML for a hover ? icon with explanation
 const tip = (text) => `<span class="info-tip"><span class="info-icon">?</span><span class="tip-text">${text}</span></span>`;
 // Collapsible section wrapper — renders as <details open> so user can collapse before PDF export
@@ -146,6 +147,7 @@ function handleFile(file) {
             const csvData = e.target.result;
             uploadedData = parseCSV(csvData);
             config.analysisWeeks = uploadedData.detectedWeeks || 26;
+            isDemoData = false; // Mark as customer upload
             showFilePreview(file.name, uploadedData);
         } catch (error) {
             showError('Error processing file: ' + error.message);
@@ -194,6 +196,7 @@ async function loadDemoReport() {
         // Parse and calculate
         uploadedData = parseCSV(csvData);
         config.analysisWeeks = uploadedData.detectedWeeks || 26;
+        isDemoData = true; // Mark as demo data
 
         // Run full calculation automatically
         await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for effect
@@ -1609,6 +1612,27 @@ function renderResults() {
 
     const html = `
         <div class="results-container">
+            ${isDemoData ? `
+            <!-- DEMO DATA WARNING BANNER -->
+            <div style="background: linear-gradient(135deg, #F59E0B, #EF4444); border: 3px solid #DC2626; border-radius: 12px; padding: 1.5rem; margin: 0 0 1.5rem; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4);">
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                    <span style="font-size: 2.5rem;">⚠️</span>
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.4rem; color: #FFFFFF; font-weight: 800;">DEMO DATA ACTIVE</h2>
+                        <p style="margin: 0.25rem 0 0; font-size: 0.95rem; color: #FEF3C7; font-weight: 600;">You are viewing example data from the "Groundhog Day" demo report</p>
+                    </div>
+                </div>
+                <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+                    <p style="margin: 0 0 0.75rem; font-size: 0.95rem; color: #FFFFFF; font-weight: 600;">⛔ DO NOT use this data for:</p>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #FEF3C7; font-size: 0.9rem; line-height: 1.6;">
+                        <li>Customer presentations or stakeholder briefings</li>
+                        <li>Business decisions or ROI justifications</li>
+                        <li>Sharing outside your organization</li>
+                    </ul>
+                    <p style="margin: 1rem 0 0; font-size: 0.95rem; color: #FFFFFF; font-weight: 600;">✅ To generate a report with YOUR data: Upload your organization's Copilot usage CSV file above</p>
+                </div>
+            </div>
+            ` : ''}
             <header>
                 <h1>M365 Copilot Productivity ROI Analysis Results</h1>
                 <p class="subtitle">Based on ${rows.length} ${uploadedData.groupLabel || 'teams'} • ${config.analysisWeeks} weeks of data${uploadedData.dateRange ? ` (${uploadedData.dateRange})` : ''}</p>
@@ -2253,6 +2277,24 @@ function generateStoryNarrative() {
 
 // Export results to DOCX — rich text narrative + section images
 async function exportToDocx() {
+    // Validate that customer data is loaded
+    if (!uploadedData) {
+        alert('Please upload your Copilot usage data first before exporting to Word.');
+        return;
+    }
+    
+    if (isDemoData) {
+        const confirmed = confirm(
+            '⚠️ WARNING: You are about to export a document using DEMO DATA.\n\n' +
+            'This file contains example data from the "Groundhog Day" demo report, NOT your organization\'s actual Copilot usage data.\n\n' +
+            '• DO NOT share this with customers or stakeholders\n' +
+            '• DO NOT use for business decisions\n' +
+            '• Upload your own CSV file to generate a document with real data\n\n' +
+            'Export demo document anyway?'
+        );
+        if (!confirmed) return;
+    }
+    
     const container = document.querySelector('.results-container');
     if (!container) return;
 
@@ -2442,6 +2484,24 @@ async function exportToDocx() {
 
 // Export results to PPTX — narrative slides + section images with speaker notes
 async function exportToPptx() {
+    // Validate that customer data is loaded
+    if (!uploadedData) {
+        alert('Please upload your Copilot usage data first before exporting to PowerPoint.');
+        return;
+    }
+    
+    if (isDemoData) {
+        const confirmed = confirm(
+            '⚠️ WARNING: You are about to export a presentation using DEMO DATA.\n\n' +
+            'This file contains example data from the "Groundhog Day" demo report, NOT your organization\'s actual Copilot usage data.\n\n' +
+            '• DO NOT share this with customers or stakeholders\n' +
+            '• DO NOT use for business decisions\n' +
+            '• Upload your own CSV file to generate a presentation with real data\n\n' +
+            'Export demo presentation anyway?'
+        );
+        if (!confirmed) return;
+    }
+    
     const container = document.querySelector('.results-container');
     if (!container) return;
 
@@ -2708,6 +2768,24 @@ async function exportToPptx() {
 // 9-slide executive presentation matching the Copilot ROI Executive Deck reference design.
 // Pure native PPTX elements — shapes, charts, cards — no screenshots.
 async function exportExecutiveDeck() {
+    // Validate that customer data is loaded
+    if (!uploadedData) {
+        alert('Please upload your Copilot usage data first before exporting the Executive Deck.');
+        return;
+    }
+    
+    if (isDemoData) {
+        const confirmed = confirm(
+            '⚠️ WARNING: You are about to export a deck using DEMO DATA.\n\n' +
+            'This deck contains example data from the "Groundhog Day" demo report, NOT your organization\'s actual Copilot usage data.\n\n' +
+            '• DO NOT share this with customers or stakeholders\n' +
+            '• DO NOT use for business decisions\n' +
+            '• Upload your own CSV file to generate a deck with real data\n\n' +
+            'Export demo deck anyway?'
+        );
+        if (!confirmed) return;
+    }
+    
     const btn = document.querySelector('[onclick="exportExecutiveDeck()"]');
     const origText = btn ? btn.textContent : '';
     if (btn) { btn.textContent = 'Building Deck…'; btn.disabled = true; }
