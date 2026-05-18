@@ -1629,7 +1629,7 @@ function renderResults() {
                         <li>Business decisions or ROI justifications</li>
                         <li>Sharing outside your organization</li>
                     </ul>
-                    <p style="margin: 1rem 0 0; font-size: 0.95rem; color: #FFFFFF; font-weight: 600;">✅ To generate a report with YOUR data: Upload your organization's Copilot usage CSV file above</p>
+                    <p style="margin: 1rem 0 0; font-size: 0.95rem; color: #FFFFFF; font-weight: 600;">✅ To generate a report with YOUR data: Return to the home screen to upload your organization's Copilot usage CSV file</p>
                 </div>
             </div>
             ` : ''}
