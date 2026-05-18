@@ -166,7 +166,7 @@ async function loadDemoReport() {
         const overlay = document.createElement('div');
         overlay.id = 'demoLoadingOverlay';
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
-        overlay.innerHTML = '<div class="loading-spinner"></div><p style="margin-top:1.5rem;font-size:1.2rem;color:var(--copilot-cyan);">Loading Groundhog Day Demo Report...</p>';
+        overlay.innerHTML = '<div class="loading-spinner"></div><p style="margin-top:1.5rem;font-size:1.2rem;color:var(--copilot-cyan);">Loading Demo Report...</p>';
         document.body.appendChild(overlay);
 
         // Track demo usage in Clarity
@@ -180,18 +180,18 @@ async function loadDemoReport() {
         const csvData = await response.text();
 
         // Pre-configure settings
-        config.totalPurchasedLicenses = 4000;
+        config.totalPurchasedLicenses = 8000;
         config.licenseCost = 30;
         config.minutesPerAction = 6;
-        config.professionalRate = 80;
-        config.intelligentRecapActions = 2000;
+        config.professionalRate = 78;
+        config.intelligentRecapActions = 0;
 
         // Update UI inputs
-        document.getElementById('totalPurchasedLicenses').value = 4000;
+        document.getElementById('totalPurchasedLicenses').value = 8000;
         document.getElementById('licensesCost').value = 30;
         document.getElementById('minutesPerAction').value = 6;
-        document.getElementById('professionalRate').value = 80;
-        document.getElementById('intelligentRecapActions').value = 2000;
+        document.getElementById('professionalRate').value = 78;
+        document.getElementById('intelligentRecapActions').value = 0;
 
         // Parse and calculate
         uploadedData = parseCSV(csvData);
@@ -1619,7 +1619,7 @@ function renderResults() {
                     <span style="font-size: 2.5rem;">⚠️</span>
                     <div>
                         <h2 style="margin: 0; font-size: 1.4rem; color: #FFFFFF; font-weight: 800;">DEMO DATA ACTIVE</h2>
-                        <p style="margin: 0.25rem 0 0; font-size: 0.95rem; color: #FEF3C7; font-weight: 600;">You are viewing example data from the "Groundhog Day" demo report</p>
+                        <p style="margin: 0.25rem 0 0; font-size: 0.95rem; color: #FEF3C7; font-weight: 600;">You are viewing example data from a demonstration dataset</p>
                     </div>
                 </div>
                 <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
@@ -2286,7 +2286,7 @@ async function exportToDocx() {
     if (isDemoData) {
         const confirmed = confirm(
             '⚠️ WARNING: You are about to export a document using DEMO DATA.\n\n' +
-            'This file contains example data from the "Groundhog Day" demo report, NOT your organization\'s actual Copilot usage data.\n\n' +
+            'This file contains example data from a demonstration dataset, NOT your organization\'s actual Copilot usage data.\n\n' +
             '• DO NOT share this with customers or stakeholders\n' +
             '• DO NOT use for business decisions\n' +
             '• Upload your own CSV file to generate a document with real data\n\n' +
@@ -2493,7 +2493,7 @@ async function exportToPptx() {
     if (isDemoData) {
         const confirmed = confirm(
             '⚠️ WARNING: You are about to export a presentation using DEMO DATA.\n\n' +
-            'This file contains example data from the "Groundhog Day" demo report, NOT your organization\'s actual Copilot usage data.\n\n' +
+            'This file contains example data from a demonstration dataset, NOT your organization\'s actual Copilot usage data.\n\n' +
             '• DO NOT share this with customers or stakeholders\n' +
             '• DO NOT use for business decisions\n' +
             '• Upload your own CSV file to generate a presentation with real data\n\n' +
@@ -2777,7 +2777,7 @@ async function exportExecutiveDeck() {
     if (isDemoData) {
         const confirmed = confirm(
             '⚠️ WARNING: You are about to export a deck using DEMO DATA.\n\n' +
-            'This deck contains example data from the "Groundhog Day" demo report, NOT your organization\'s actual Copilot usage data.\n\n' +
+            'This deck contains example data from a demonstration dataset, NOT your organization\'s actual Copilot usage data.\n\n' +
             '• DO NOT share this with customers or stakeholders\n' +
             '• DO NOT use for business decisions\n' +
             '• Upload your own CSV file to generate a deck with real data\n\n' +
