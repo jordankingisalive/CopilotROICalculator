@@ -2936,11 +2936,12 @@ async function exportExecutiveDeck() {
             x: 0.85, y: 1.95, w: 11.60, h: 1.10, fontSize: 18, fontFace: 'Calibri', color: CYAN, bold: true, valign: 'top'
         });
 
-        // 3 insight cards
+        // 3 insight cards — Card 3 uses the SAME realistic-case math as Slide 7 (50% of current licensed productivity, net of license cost)
+        const realisticAnnualNetPer1000 = (monthlyValuePerUser * 0.50 - config.licenseCost) * 1000 * 12;
         const insightCards = [
             { title: 'Strong adoption', body: `${fmt(metrics.totalActiveUsers)} of ${fmt(metrics.totalEnabledUsers)} licensed users are active weekly. Power users (${pct(metrics.powerUserRate)}) average 20+ actions per week and model behavior for peers.`, accent: GREEN },
             { title: 'Every tier is profitable', body: `Even bottom-25% users return ${tierData.length > 0 ? tierData[tierData.length - 1].roi.toFixed(1) : '?'}x. Top performers reach ${tierData.length > 0 ? tierData[0].roi.toFixed(1) : '?'}x. The investment carries no underwater segment.`, accent: CYAN },
-            { title: 'Headroom for expansion', body: `Each 1,000 unlicensed users represents ~$${fmt(Math.round(monthlyValuePerUser * 1000 * 0.1 * 12))}/year in opportunity. Scaling deployment amplifies ROI through network effects.`, accent: GOLD },
+            { title: 'Headroom for expansion', body: `Each 1,000 unlicensed users → ~$${fmt(Math.round(realisticAnnualNetPer1000))}/year NET GAIN at a realistic 50%-of-current-productivity ramp (see Slide 7 for floor and parity cases).`, accent: GOLD },
         ];
         insightCards.forEach((card, i) => {
             const cx = 0.60 + i * 4.10;
@@ -2960,10 +2961,15 @@ async function exportExecutiveDeck() {
         s2.addNotes(
             'EXECUTIVE SUMMARY\n\n' +
             'OPENER: "Let me give you the headline — Copilot pays for itself ' + metrics.roiMultiple.toFixed(1) + ' times over."\n\n' +
-            'Walk through each card:\n' +
-            `1. ADOPTION: ${pct(metrics.activationRate)} activation — this happened organically, without formal training.\n` +
-            `2. PROFITABILITY: Every tier is positive. Even the lowest users cover their cost.\n` +
-            `3. EXPANSION: Each 1,000 new seats adds ~$${fmt(Math.round(monthlyValuePerUser * 100 * 12))}/year conservatively.\n\n` +
+            'CARD-BY-CARD MATH:\n' +
+            `1. ADOPTION: ${pct(metrics.activationRate)} activation  =  ${fmt(metrics.totalActiveUsers)} active ÷ ${fmt(metrics.totalEnabledUsers)} licensed. Organic, no formal training.\n` +
+            `2. PROFITABILITY: Bottom-25% tier returns ${tierData.length > 0 ? tierData[tierData.length - 1].roi.toFixed(1) : '?'}x; top tier ${tierData.length > 0 ? tierData[0].roi.toFixed(1) : '?'}x. No tier is underwater.\n` +
+            `3. EXPANSION (realistic case): per 1,000 unlicensed users at 50% of current productivity:\n` +
+            `   value/user/mo = 50% × $${Math.round(monthlyValuePerUser)} = $${Math.round(monthlyValuePerUser * 0.5)}\n` +
+            `   net/user/mo   = $${Math.round(monthlyValuePerUser * 0.5)} − $${config.licenseCost} = $${Math.round(monthlyValuePerUser * 0.5 - config.licenseCost)}\n` +
+            `   annual / 1,000 = $${Math.round(monthlyValuePerUser * 0.5 - config.licenseCost)} × 1,000 × 12 = $${fmt(Math.round(realisticAnnualNetPer1000))}\n` +
+            '   See Slide 7 for full 10% floor / 50% realistic / 100% parity scenario math.\n\n' +
+            `HEADLINE FORMULA: ${fmt(Math.round(metrics.totalWeeklyActions * 4.33))} monthly actions × ${config.minutesPerAction} min ÷ 60 × $${config.professionalRate}/hr = ${fmtM(metrics.valuePerMonth)} value; ÷ $${fmt(Math.round(metrics.monthlyCostPurchased))} cost = ${metrics.roiMultiple.toFixed(2)}x ROI.\n\n` +
             'OBJECTION: "Is this sustainable?" → Yes — ' + weeks + ' weeks of sustained/growing data.\n' +
             'TRANSITION: "Let me show you the numbers behind this..."'
         );
@@ -3104,7 +3110,7 @@ async function exportExecutiveDeck() {
         const colDefs = [
             { label: 'USER TIER', x: 0.60, w: 2.00 },
             { label: 'ACTIVE USERS', x: 2.60, w: 1.80 },
-            { label: 'ACTIONS / MO', x: 4.40, w: 1.90 },
+            { label: 'ACTIONS / USER / MO', x: 4.40, w: 1.90 },
             { label: 'MONTHLY INVESTMENT', x: 6.30, w: 2.30 },
             { label: 'MONTHLY VALUE', x: 8.60, w: 2.10 },
             { label: 'ROI', x: 10.70, w: 2.00 },
@@ -3149,13 +3155,21 @@ async function exportExecutiveDeck() {
         addFooter(s5, 5);
 
         s5.addNotes(
-            'USAGE TIER DISTRIBUTION\n\n' +
-            'KEY POINT: Every tier is profitable. There is no underwater segment.\n' +
-            tierData.map(t => `  ${t.name}: ${fmt(t.users)} users, ${t.actPerUser} act/mo/user, $${fmt(Math.round(t.value))}/mo, ${t.roi.toFixed(1)}x ROI`).join('\n') + '\n\n' +
+            'USAGE TIER DISTRIBUTION  —  COLUMN DEFINITIONS\n' +
+            '====================================================\n\n' +
+            'USER TIER:           Quartile of teams ranked by total weekly actions.\n' +
+            'ACTIVE USERS:        Count of users in that quartile’s teams who took at least one action in the period.\n' +
+            'ACTIONS / USER / MO: Per-user monthly average  =  (sum of weekly actions in tier × 4.33) ÷ active users in tier.\n' +
+            `MONTHLY INVESTMENT:  Tier users × $${config.licenseCost}/user/mo license cost.\n` +
+            `MONTHLY VALUE:       Tier actions × ${config.minutesPerAction} min ÷ 60 × $${config.professionalRate}/hr.\n` +
+            'ROI:                 Monthly value ÷ monthly investment.\n\n' +
+            'PER-TIER NUMBERS:\n' +
+            tierData.map(t => `  ${t.name}: ${fmt(t.users)} users, ${t.actPerUser} actions/user/mo, $${fmt(t.invest)}/mo invest, $${fmt(Math.round(t.value))}/mo value, ${t.roi.toFixed(1)}x ROI`).join('\n') + '\n\n' +
+            'KEY POINT: Every tier is profitable. There is no underwater segment.\n\n' +
             'NARRATIVE:\n' +
-            '- "Even the bottom 25% pays for itself. The question is not whether to keep Copilot \u2014 it\u2019s how to move everyone up one tier."\n' +
+            '- "Even the bottom 25% pays for itself. The question is not whether to keep Copilot — it’s how to move everyone up one tier."\n' +
             '- Point to the ROI column: all green. No red anywhere.\n' +
-            '- "If bottom quartile reached the median, that\u2019s significant incremental value for free."'
+            '- "If bottom quartile reached the median, that’s significant incremental value for free."'
         );
 
         // ════════════════════════════════════════════
@@ -3163,7 +3177,7 @@ async function exportExecutiveDeck() {
         // ════════════════════════════════════════════
         const s6 = pptx.addSlide();
         s6.background = { color: BG };
-        addSectionHeader(s6, 'BREAK-EVEN & PRICING SENSITIVITY', `Users average ~${Math.round(avgActionsPerMonth)} actions/month \u2014 ${Math.round(avgActionsPerMonth / breakEvenActions)}\u00d7 the break-even threshold`);
+        addSectionHeader(s6, 'BREAK-EVEN & PRICING SENSITIVITY', `Users average ~${Math.round(avgActionsPerMonth)} actions per user per month — ${Math.round(avgActionsPerMonth / breakEvenActions)}× the break-even threshold`);
 
         // Chart: bar chart showing actions per tier vs break-even line
         const tierLabels = tierData.map(t => t.name);
@@ -3196,20 +3210,37 @@ async function exportExecutiveDeck() {
         const py = 2.45;
         s6.addText(`@ $${config.licenseCost}/mo`, { x: 8.60, y: py, w: 2.20, h: 0.55, fontSize: 13, fontFace: 'Calibri', color: TEXT, valign: 'middle' });
         s6.addText(actualRoi + 'x', { x: 10.70, y: py, w: 2.0, h: 0.55, fontSize: 24, fontFace: 'Cambria', color: GREEN, bold: true, valign: 'middle', align: 'right' });
-        s6.addText(`Users average ~${Math.round(avgActionsPerMonth)} actions/mo \u2014 far above the ${breakEvenActions.toFixed(1)} needed to break even at $${config.licenseCost}.`, {
+        s6.addText(`Users average ~${Math.round(avgActionsPerMonth)} actions/user/mo — far above the ${breakEvenActions.toFixed(1)} actions/user/mo needed to break even at $${config.licenseCost}/user/mo.`, {
             x: 8.60, y: 3.60, w: 4.0, h: 1.2, fontSize: 12, fontFace: 'Calibri', color: TEXT, valign: 'top'
         });
-        s6.addText(`Methodology: ${config.minutesPerAction} minutes saved per Copilot action \u00d7 $${config.professionalRate}/hr fully-loaded professional rate`, {
+        s6.addText(`Methodology: break-even = license_cost ÷ value_per_action; value_per_action = (${config.minutesPerAction} min ÷ 60) × $${config.professionalRate}/hr = $${((config.minutesPerAction / 60) * config.professionalRate).toFixed(2)}/action.`, {
             x: 0.60, y: 6.65, w: 12.10, h: 0.30, fontSize: 10, fontFace: 'Calibri', color: MUTED
         });
         addFooter(s6, 6);
 
+        const valuePerActionS6 = (config.minutesPerAction / 60) * config.professionalRate;
         s6.addNotes(
-            'BREAK-EVEN & PRICING\n\n' +
-            `Break-even: ${breakEvenActions.toFixed(1)} actions/user/month at $${config.licenseCost}/mo.\n` +
-            `Actual average: ${Math.round(avgActionsPerMonth)} actions/user/month \u2014 that's ${Math.round(avgActionsPerMonth / breakEvenActions)}x over break-even.\n\n` +
+            'BREAK-EVEN & PRICING SENSITIVITY  —  FULL DERIVATION\n' +
+            '======================================================\n\n' +
+            '1. VALUE PER COPILOT ACTION\n' +
+            `   = (${config.minutesPerAction} min saved ÷ 60 min/hr) × $${config.professionalRate}/hr fully-loaded rate\n` +
+            `   = ${(config.minutesPerAction / 60).toFixed(4)} hr × $${config.professionalRate}\n` +
+            `   = $${valuePerActionS6.toFixed(2)} per action.\n\n` +
+            '2. BREAK-EVEN THRESHOLD  (actions/user/month needed to cover license cost)\n' +
+            `   = license_cost ÷ value_per_action\n` +
+            `   = $${config.licenseCost} ÷ $${valuePerActionS6.toFixed(2)}\n` +
+            `   = ${breakEvenActions.toFixed(1)} actions/user/month.\n\n` +
+            '3. ACTUAL AVERAGE\n' +
+            `   = ${Math.round(avgActionsPerMonth)} actions/user/month  (${Math.round(avgActionsPerMonth / breakEvenActions)}× the break-even number).\n\n` +
+            '4. PER-USER ROI AT YOUR LICENSE COST\n' +
+            `   = avg_value_per_user ÷ license_cost\n` +
+            `   = $${Math.round(monthlyValuePerUser)} ÷ $${config.licenseCost}\n` +
+            `   = ${actualRoi}x.\n\n` +
+            '5. PRICING SENSITIVITY\n' +
+            `   Even at 2× license cost ($${config.licenseCost * 2}/mo): break-even = ${(breakEvenActions * 2).toFixed(1)} actions/user/mo; users still ${(avgActionsPerMonth / (breakEvenActions * 2)).toFixed(1)}× over.\n` +
+            `   At 3× ($${config.licenseCost * 3}/mo):                break-even = ${(breakEvenActions * 3).toFixed(1)}; users still ${(avgActionsPerMonth / (breakEvenActions * 3)).toFixed(1)}× over.\n\n` +
             'POWER POINT: "Even if we tripled the license cost, users would STILL break even."\n' +
-            'This is the slide that kills the cost objection permanently.'
+            'This slide kills the cost objection permanently.'
         );
 
         // ════════════════════════════════════════════
@@ -3519,7 +3550,7 @@ async function exportExecutiveDeck() {
         const midTierRoi = tierData.length > 2 ? tierData[Math.floor(tierData.length / 2)].roi.toFixed(1) : '?';
         const recs = [
             { num: '01', numColor: GREEN, title: 'Replicate top-tier playbooks', body: `Codify what ${topTierName} and top performers do differently \u2014 power user ratios, prompt patterns, weekly cadence. Package as an enablement kit for mid-tier ${groupLabel}.` },
-            { num: '02', numColor: CYAN, title: `Lift the 25\u201350% tier`, body: `${fmt(bottomTierUsers)} users at ${bottomTierRoi}x ROI. Targeted coaching to push them into the 50\u201375% band (${midTierRoi}x) adds significant monthly value for zero incremental license cost.` },
+            { num: '02', numColor: CYAN, title: `Lift the bottom 25% tier`, body: `${fmt(bottomTierUsers)} users currently at ${bottomTierRoi}x ROI. Targeted coaching to lift them to the median tier (${midTierRoi}x) adds significant monthly value at zero incremental license cost — same seats, more usage.` },
             { num: '03', numColor: GOLD, title: 'Expand licensed footprint', body: `Each 1,000 unlicensed seats represents ~$${fmt(Math.round(sRealistic.annualNet))}/year net gain at a realistic 50%-of-current-productivity ramp (range: $${fmt(Math.round(sFloor.annualNet))} floor \u2192 $${fmt(Math.round(sParity.annualNet))} at full parity).` },
         ];
         recs.forEach((rec, i) => {
