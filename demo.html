@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M365 Copilot ROI Calculator — Live Demo</title>
+    <meta name="description" content="Always-on demo of the M365 Copilot Productivity ROI Calculator, pre-loaded with sample data. Designed for embedding into other sites via iframe.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://jordankingisalive.github.io/CopilotROICalculator/demo.html">
+
+    <!-- Transparent redirect to the main calculator in embed mode.
+         Keeps demo.html as a clean, stable URL for embedders while
+         the actual UI lives in index.html (single source of truth). -->
+    <meta http-equiv="refresh" content="0; url=index.html?embed=1">
+    <script>
+        // JS redirect as fallback for environments that strip meta-refresh
+        // (some iframe sandboxes). Use replace() so back-button skips this page.
+        window.location.replace('index.html?embed=1');
+    </script>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #0F172A;
+            color: #F1F5F9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            height: 100%;
+        }
+        .fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            text-align: center;
+        }
+        .fallback a {
+            color: #00D4FF;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            padding: 0.75rem 1.5rem;
+            border: 1px solid #00D4FF;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: inline-block;
+        }
+        .fallback a:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <noscript>
+        <div class="fallback">
+            <h1>M365 Copilot ROI Calculator — Live Demo</h1>
+            <p>This page requires JavaScript. <a href="index.html?embed=1">Open the calculator</a>.</p>
+        </div>
+    </noscript>
+    <div class="fallback">
+        <p>Loading demo…</p>
+        <a href="index.html?embed=1">Continue manually</a>
+    </div>
+</body>
+</html>

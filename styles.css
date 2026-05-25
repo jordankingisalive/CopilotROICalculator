@@ -990,3 +990,47 @@ input:checked + .toggle-slider:hover {
         grid-template-columns: 1fr;
     }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   EMBED MODE
+   Activated by adding ?embed=1 to the URL (handled in script.js).
+   Hides upload/config chrome so the page can be iframed as a
+   live, always-on demo. The demo report itself remains fully
+   interactive (export to PDF/DOCX/PPTX still works).
+   ───────────────────────────────────────────────────────────── */
+body.embed-mode header,
+body.embed-mode .nav-tabs,
+body.embed-mode .instructions-section,
+body.embed-mode footer,
+body.embed-mode #demoLoadingOverlay ~ * .nav-tabs {
+    display: none !important;
+}
+
+/* Hide the standalone "View Demo Report" button section that sits
+   between the nav and main (it's a div, not in a semantic section). */
+body.embed-mode main + footer,
+body.embed-mode .container > div:has(> button[onclick*="loadDemoReport"]) {
+    display: none !important;
+}
+
+/* Tighter padding when embedded — iframe parents control height. */
+body.embed-mode {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: var(--bg, #0F172A);
+}
+
+body.embed-mode .container {
+    padding-top: 0 !important;
+}
+
+body.embed-mode main {
+    padding-top: 1rem !important;
+}
+
+/* Keep the post-calculation results-container visible and fully
+   styled — it's what we want the embedder to show. */
+body.embed-mode .results-container {
+    display: block !important;
+}
+

@@ -132,6 +132,22 @@ document.addEventListener('DOMContentLoaded', function() {
         config.totalPurchasedLicenses = parseInt(e.target.value) || 0;
         onConfigChange();
     });
+
+    // ─────────────────────────────────────────────────────────────
+    // Embed mode: ?embed=1 (or ?demo=1) auto-loads the demo report
+    // and hides upload/config chrome. Used by demo.html and any
+    // external site that iframes the calculator as a live demo.
+    // ─────────────────────────────────────────────────────────────
+    try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('embed') || params.has('demo')) {
+            document.body.classList.add('embed-mode');
+            // Brief delay so layout settles + scripts finish init
+            setTimeout(() => { loadDemoReport(); }, 50);
+        }
+    } catch (e) {
+        console.warn('Embed mode init skipped:', e);
+    }
 });
 
 // Handle file upload
