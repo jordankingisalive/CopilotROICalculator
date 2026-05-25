@@ -164,7 +164,7 @@ function renderResults(data) {
         payback: data.annualCost / (data.optimistic.monthlyValue + data.recapMonthlyValue)
     };
 
-    // Determine if we should show recap controls (only if recap actions > 0)
+    // Show recap controls only when recap actions are greater than zero
     const showRecap = data.recapActions > 0;
 
     const html = `

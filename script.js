@@ -2224,7 +2224,7 @@ function generateStoryNarrative() {
         // ── ACT 5: ACTION — Recommendations ──
         recommendations: [
             `EXPAND: Scale deployment to additional users and departments. Current ${pct(metrics.activationRate)} activation demonstrates strong organic demand.`,
-            `ENABLE: Launch targeted enablement programs for bottom-quartile ${groupLabel}. If they reach median performance, monthly value increases by ${usd((() => { const bot = byActions.slice(Math.round(totalTeams * 0.75)); const medianActions = byActions.length > 0 ? byActions[Math.floor(byActions.length / 2)].actionsPerUser : 0; let delta = 0; bot.forEach(t => { const current = t.monthlyValue; const projected = (medianActions * 4.33 * config.minutesPerAction / 60) * config.professionalRate * t.activeUsers / (t.actionsPerUser > 0 ? t.actionsPerUser : 1) * (medianActions / (t.actionsPerUser > 0 ? t.actionsPerUser : 1)); delta += Math.max(0, projected - current); }); return delta; })())}.`,
+            `ENABLE: Launch targeted enablement programs for bottom-quartile ${groupLabel}. If they reach median performance, monthly value increases by ${usd((() => { const bot = byActions.slice(Math.round(totalTeams * 0.75)); const medianActions = byActions.length > 0 ? byActions[Math.floor(byActions.length / 2)].actionsPerUser : 0; let delta = 0; bot.forEach(t => { const current = t.monthlyValue; const projected = (medianActions * 4.33 * config.minutesPerAction / 60) * config.professionalRate * t.activeUsers; delta += Math.max(0, projected - current); }); return delta; })())}.`,
             `CHAMPION: Formalize a power-user ambassador program. Your ${fmt(metrics.powerUsers)} power users are natural trainers who can accelerate peer adoption.`,
             `MEASURE: Maintain regular analysis cadence (monthly or quarterly) to track ROI trajectory and identify emerging champion ${groupLabel}.`,
             metrics.unassignedLicenses > 0 ? `OPTIMIZE: ${fmt(metrics.unassignedLicenses)} purchased licenses are unassigned (${usd(metrics.wastedLicenseCost)}/month unused). Reassign or reduce to improve cost efficiency.` : '',
@@ -3255,8 +3255,8 @@ async function exportExecutiveDeck() {
             '5. PRICING SENSITIVITY\n' +
             `   Even at 2× license cost ($${config.licenseCost * 2}/mo): break-even = ${(breakEvenActions * 2).toFixed(1)} actions/user/mo; users still ${(avgActionsPerMonth / (breakEvenActions * 2)).toFixed(1)}× over.\n` +
             `   At 3× ($${config.licenseCost * 3}/mo):                break-even = ${(breakEvenActions * 3).toFixed(1)}; users still ${(avgActionsPerMonth / (breakEvenActions * 3)).toFixed(1)}× over.\n\n` +
-            'POWER POINT: "Even if we tripled the license cost, users would STILL break even."\n' +
-            'This slide kills the cost objection permanently.'
+            'KEY MESSAGE: At three times the current license cost, users would still operate well above the break-even threshold.\n' +
+            'Use this slide to address questions about license cost sensitivity.'
         );
 
         // ════════════════════════════════════════════
@@ -3348,7 +3348,7 @@ async function exportExecutiveDeck() {
         });
         addFooter(s7, 7);
 
-        // Speaker notes — full algebra so the slide is bulletproof under questioning
+        // Speaker notes — full derivation of every figure shown on the slide
         const valPerActionDollars = (config.minutesPerAction / 60) * config.professionalRate;
         s7.addNotes(
             'UNLICENSED USER OPPORTUNITY COST  —  FULL MATHEMATICAL DERIVATION\n' +
