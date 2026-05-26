@@ -3,33 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M365 Copilot Productivity ROI Calculator</title>
-    <link rel="stylesheet" href="styles.css?v=29">
-    
-    <!-- Microsoft Clarity Analytics -->
-    <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        })(window,document,"clarity","script","wt5uwqabv0");
+
+    <!-- ===== Primary SEO ===== -->
+    <title>Microsoft 365 Copilot ROI Calculator | Measure Productivity Value &amp; Cost</title>
+    <meta name="description" content="Free Microsoft 365 Copilot ROI calculator. Upload your Copilot Insight Report CSV to measure productivity value, cost-per-user, break-even actions, and per-team adoption. Runs entirely in your browser — no data leaves your machine.">
+    <meta name="keywords" content="Microsoft 365 Copilot ROI, M365 Copilot ROI calculator, Copilot productivity value, Copilot adoption analytics, Copilot break-even, Copilot license cost, Copilot Insight Report, Copilot ROI tool, free Copilot ROI calculator">
+    <meta name="author" content="Jordan King">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+    <meta name="theme-color" content="#0078D4">
+    <link rel="canonical" href="https://jordankingisalive.github.io/CopilotROICalculator/">
+
+    <!-- ===== Open Graph ===== -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="M365 Copilot ROI Calculator">
+    <meta property="og:title" content="Microsoft 365 Copilot ROI Calculator">
+    <meta property="og:description" content="Free in-browser calculator that turns your Copilot Insight Report into productivity value, cost-per-user, and break-even analysis.">
+    <meta property="og:url" content="https://jordankingisalive.github.io/CopilotROICalculator/">
+    <meta property="og:image" content="https://jordankingisalive.github.io/CopilotROICalculator/screenshots/og-image.png">
+    <meta property="og:image:alt" content="Microsoft 365 Copilot ROI Calculator report showing productivity value, adoption metrics, and team performance.">
+
+    <!-- ===== Twitter Card ===== -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Microsoft 365 Copilot ROI Calculator">
+    <meta name="twitter:description" content="Free in-browser calculator that turns your Copilot Insight Report into productivity value, cost-per-user, and break-even analysis.">
+    <meta name="twitter:image" content="https://jordankingisalive.github.io/CopilotROICalculator/screenshots/og-image.png">
+
+    <!-- ===== Structured Data: WebApplication ===== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Microsoft 365 Copilot ROI Calculator",
+      "url": "https://jordankingisalive.github.io/CopilotROICalculator/",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Any (browser-based)",
+      "description": "Free Microsoft 365 Copilot ROI calculator. Upload your Copilot Insight Report CSV to measure productivity value, cost-per-user, break-even actions, and per-team adoption.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "author": { "@type": "Person", "name": "Jordan King", "url": "https://jordankingisalive.github.io/" },
+      "featureList": [
+        "Computes productivity value from Copilot actions and minutes saved",
+        "Shows ROI multiple, break-even threshold, and per-user payback",
+        "Groups teams into usage tiers (Top 10%, 75-90%, 50-75%, 25-50%, Bottom 25%)",
+        "Generates 9-slide executive PowerPoint deck (.pptx) with speaker notes",
+        "Exports DOCX report and PDF",
+        "Runs entirely in the browser — no data is uploaded to a server"
+      ]
+    }
     </script>
-    <script>
-        // Force service worker update and reload when new version is available
-        if('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(reg => {
-                reg.onupdatefound = () => {
-                    const installingWorker = reg.installing;
-                    installingWorker.onstatechange = () => {
-                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            // New service worker available, reload to activate
-                            window.location.reload();
-                        }
-                    };
-                };
-            });
+
+    <!-- ===== Structured Data: FAQ (Answer Engine Optimization) ===== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do you calculate the ROI of Microsoft 365 Copilot?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Microsoft 365 Copilot ROI is calculated by multiplying total Copilot actions by the average minutes saved per action, converting to hours, then multiplying by the fully-loaded hourly rate of the employee. Divide that monthly productivity value by the monthly license cost to get the ROI multiple. Formula: ROI = (actions × minutes_saved ÷ 60 × hourly_rate) ÷ (licenses × monthly_license_cost)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How many Copilot actions per user per month are needed to break even?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Break-even actions per user per month equals the monthly license cost divided by the value per action. Value per action equals (minutes saved ÷ 60) × hourly rate. For example, at $30 per license, 6 minutes saved per action, and a $78 per hour fully-loaded rate, value per action is $7.80 and the break-even threshold is roughly 3.8 actions per user per month."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How much time does Microsoft 365 Copilot save per employee?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Microsoft research typically cites 3 to 10 minutes saved per Copilot action, with 6 minutes used as a conservative midpoint for ROI modeling. Actual time savings depend on the action type, the user's role, and how the output is reused downstream."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What data source does the Microsoft 365 Copilot ROI Calculator use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The calculator ingests the Microsoft Copilot Insight Report CSV export, which contains weekly enabled users, active users, total Copilot actions, and per-team breakdowns. The file is parsed locally in the browser and never uploaded to a server."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How are Copilot usage tiers defined in the calculator?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Teams are sorted by average Copilot actions per active user and grouped into five percentile bands: Top 10%, 75 to 90%, 50 to 75%, 25 to 50%, and Bottom 25%. Each tier reports its active user count, average actions per user per month, monthly investment, monthly productivity value, and tier-level ROI."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is the Microsoft 365 Copilot ROI Calculator free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. The calculator is free to use, open source on GitHub, and runs entirely in the browser. Uploaded CSV data never leaves the user's machine."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can the calculator generate an executive presentation?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. After a calculation runs, the tool can export a 9-slide executive PowerPoint deck (.pptx) with title, executive summary, key metrics, top organizations chart, usage tier value distribution, break-even and pricing sensitivity, unlicensed user opportunity cost, expansion projections, and recommendations — each with full speaker notes that derive every figure on the slide."
+          }
         }
+      ]
+    }
     </script>
+
+    <link rel="stylesheet" href="styles.css">
     <style>
         details summary::-webkit-details-marker { display: none; }
     </style>
@@ -41,13 +129,8 @@
                 <div>
                     <h1>M365 Copilot Productivity ROI Projections</h1>
                     <p class="subtitle">Transform your usage data into actionable insights</p>
-                    <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none; font-size: 0.95rem;">📊 View more reports on the Analytics Hub →</a></p>
                 </div>
                 <div class="header-actions">
-                    <button onclick="downloadLocalPackage(event)" class="action-btn" title="Download & Run Locally" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399; color: white !important;">
-                        <span class="action-icon">📦</span>
-                        <span class="action-text" style="color: white !important;">Download Local</span>
-                    </button>
                     <button onclick="emailReport()" class="action-btn" title="Share via Email">
                         <span class="action-icon">📧</span>
                         <span class="action-text">Email</span>
@@ -69,35 +152,7 @@
                 <span class="nav-icon">🚀</span>
                 <span class="nav-text">Adoption Journey</span>
             </a>
-            <a href="changelog.html" class="nav-btn">
-                <span class="nav-icon">📋</span>
-                <span class="nav-text">What's New</span>
-            </a>
-            <a href="run-locally.html" class="nav-btn">
-                <span class="nav-icon">📦</span>
-                <span class="nav-text">Run Locally</span>
-            </a>
         </nav>
-
-        <!-- Demo Button Section -->
-        <div style="max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 0 2rem;">
-            <button onclick="loadDemoReport()" class="btn-primary" style="
-                background: linear-gradient(135deg, #10b981, #059669);
-                border: 2px solid #34d399;
-                padding: 1rem 2rem;
-                font-size: 1.1rem;
-                font-weight: 700;
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                margin: 0 auto;
-                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-            ">
-                <span style="font-size: 1.5rem;">🎯</span>
-                <span>View Demo Report</span>
-                <span style="font-size: 0.75rem; opacity: 0.9;">(Demo Dataset - 27 Organizations)</span>
-            </button>
-        </div>
 
         <main>
             <section class="instructions-section">
@@ -175,12 +230,6 @@
                             <div class="config-item">
                                 <label for="licenseCost">License Cost per User/Month (USD)</label>
                                 <input type="number" id="licensesCost" value="30" min="0" step="0.01">
-                            </div>
-
-                            <div class="config-item">
-                                <label for="totalPurchasedLicenses">Total Purchased Licenses</label>
-                                <input type="number" id="totalPurchasedLicenses" value="0" min="0" step="1">
-                                <small>Total licenses procured (including unassigned). Leave 0 to use enabled count from data.</small>
                             </div>
 
                             <div class="config-item">
@@ -275,12 +324,7 @@
         </footer>
     </div>
 
-    <script src="lib/jspdf.umd.min.js"></script>
-    <script src="lib/html2canvas.min.js"></script>
-    <script src="lib/docx.umd.js"></script>
-    <script src="lib/pptxgen.bundle.js"></script>
-    <script src="lib/jszip.min.js"></script>
-    <script src="script.js?v=31"></script>
+    <script src="script.js?v=6"></script>
     <script>
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Productivity ROI Analysis');
@@ -296,42 +340,6 @@
                 professionalRateInput.value = industrySelect.value;
             }
         }
-
-        // Global tooltip system — positions tooltip above-left of the ? icon using fixed positioning
-        (function() {
-            const tip = document.createElement('div');
-            tip.id = 'global-tooltip';
-            document.body.appendChild(tip);
-
-            document.addEventListener('mouseenter', function(e) {
-                const infoTip = e.target.closest('.info-tip');
-                if (!infoTip) return;
-                const textEl = infoTip.querySelector('.tip-text');
-                if (!textEl) return;
-
-                tip.textContent = textEl.textContent;
-                tip.classList.add('visible');
-
-                const rect = infoTip.getBoundingClientRect();
-                // Position: above and to the left of the ? icon
-                let top = rect.top - tip.offsetHeight - 8;
-                let left = rect.left - tip.offsetWidth + rect.width;
-
-                // Keep on screen
-                if (top < 8) top = rect.bottom + 8;
-                if (left < 8) left = 8;
-                if (left + tip.offsetWidth > window.innerWidth - 8) left = window.innerWidth - tip.offsetWidth - 8;
-
-                tip.style.top = top + 'px';
-                tip.style.left = left + 'px';
-            }, true);
-
-            document.addEventListener('mouseleave', function(e) {
-                const infoTip = e.target.closest('.info-tip');
-                if (!infoTip) return;
-                tip.classList.remove('visible');
-            }, true);
-        })();
 
     </script>
 </body>

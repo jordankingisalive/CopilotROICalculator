@@ -3,17 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M365 Copilot Productivity ROI Projections</title>
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- Microsoft Clarity Analytics -->
-    <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        })(window,document,"clarity","script","wt5uwqabv0");
+
+    <!-- ===== Primary SEO ===== -->
+    <title>Microsoft 365 Copilot ROI Projection Calculator | Cost vs. Productivity Value</title>
+    <meta name="description" content="Model the projected ROI of a Microsoft 365 Copilot rollout. Enter license count, activation rate, actions per user, and hourly rate to see conservative, base, and optimistic productivity value scenarios and payback period.">
+    <meta name="keywords" content="Copilot ROI projection, Microsoft 365 Copilot cost calculator, Copilot payback period, Copilot productivity scenarios, Copilot license value, Copilot business case">
+    <meta name="author" content="Jordan King">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+    <meta name="theme-color" content="#0078D4">
+    <link rel="canonical" href="https://jordankingisalive.github.io/CopilotROICalculator/roi-calculator.html">
+
+    <!-- ===== Open Graph ===== -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="M365 Copilot ROI Calculator">
+    <meta property="og:title" content="Microsoft 365 Copilot ROI Projection Calculator">
+    <meta property="og:description" content="Model Copilot license cost against projected productivity value across conservative, base, and optimistic scenarios.">
+    <meta property="og:url" content="https://jordankingisalive.github.io/CopilotROICalculator/roi-calculator.html">
+    <meta property="og:image" content="https://jordankingisalive.github.io/CopilotROICalculator/screenshots/og-image.png">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Microsoft 365 Copilot ROI Projection Calculator">
+    <meta name="twitter:description" content="Model Copilot license cost against projected productivity value across conservative, base, and optimistic scenarios.">
+    <meta name="twitter:image" content="https://jordankingisalive.github.io/CopilotROICalculator/screenshots/og-image.png">
+
+    <!-- ===== Structured Data: WebApplication ===== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Microsoft 365 Copilot ROI Projection Calculator",
+      "url": "https://jordankingisalive.github.io/CopilotROICalculator/roi-calculator.html",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Any (browser-based)",
+      "description": "Project Microsoft 365 Copilot ROI from license count, activation rate, actions per user per week, and hourly rate. Returns conservative, base, and optimistic productivity value scenarios with payback period.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "author": { "@type": "Person", "name": "Jordan King", "url": "https://jordankingisalive.github.io/" }
+    }
     </script>
+
+    <link rel="stylesheet" href="styles.css">
     <style>
         .projection-form {
             background: var(--surface, #1E293B);
@@ -378,14 +406,6 @@
                     <p class="subtitle">Project potential productivity value and growth opportunities</p>
                 </div>
                 <div class="header-actions">
-                    <button onclick="downloadLocalPackage(event)" class="action-btn" title="Download & Run Locally" style="background: linear-gradient(135deg, #10b981, #059669); border: 1px solid #34d399; color: white !important;">
-                        <span class="action-icon">📦</span>
-                        <span class="action-text" style="color: white !important;">Download Local</span>
-                    </button>
-                    <button onclick="exportToPDF()" class="action-btn" title="Export to PDF">
-                        <span class="action-icon">📄</span>
-                        <span class="action-text">Export PDF</span>
-                    </button>
                     <button onclick="emailReport()" class="action-btn" title="Share via Email">
                         <span class="action-icon">📧</span>
                         <span class="action-text">Email</span>
@@ -406,14 +426,6 @@
             <a href="Start Here.html" class="nav-btn">
                 <span class="nav-icon">🚀</span>
                 <span class="nav-text">Adoption Journey</span>
-            </a>
-            <a href="changelog.html" class="nav-btn">
-                <span class="nav-icon">📋</span>
-                <span class="nav-text">What's New</span>
-            </a>
-            <a href="run-locally.html" class="nav-btn">
-                <span class="nav-icon">💻</span>
-                <span class="nav-text">Run Locally</span>
             </a>
         </nav>
 
@@ -1063,7 +1075,6 @@ function renderResults(data) {
 
             <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
                 <button class="btn-secondary" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">← Modify Inputs</button>
-                <button class="btn-secondary" onclick="window.print()">Print Projections</button>
                 <button class="btn-primary" onclick="exportToEmail()">Email to Customer</button>
             </div>
         </div>
@@ -1122,34 +1133,7 @@ function toggleRecapDisplay() {
     });
 }
     </script>
-    <script src="lib/jszip.min.js?v=22"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        function exportToPDF() {
-            const element = document.querySelector('.container');
-            const opt = {
-                margin: 0.5,
-                filename: 'M365_Copilot_ROI_Projections.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false
-                },
-                jsPDF: {
-                    unit: 'in',
-                    format: 'letter',
-                    orientation: 'portrait'
-                },
-                pagebreak: {
-                    mode: ['avoid-all', 'css', 'legacy'],
-                    avoid: ['.phase-card', '.month-card', '.insight-card', '.scenario-card', 'img', '.timeline-visual', '.month-grid', '.metric-card']
-                }
-            };
-
-            html2pdf().set(opt).from(element).save();
-        }
-
         function emailReport() {
             const subject = encodeURIComponent('M365 Copilot Productivity ROI Projections');
             const body = encodeURIComponent('Please find information about M365 Copilot productivity projections. This analysis explores potential productivity gains and growth opportunities.\n\nFor the interactive calculator, please visit: [Your URL Here]');
