@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://jordankingisalive.github.io/CopilotROICalculator/sitemap.xml
