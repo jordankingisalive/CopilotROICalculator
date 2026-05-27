@@ -1331,7 +1331,8 @@ function renderResults() {
         </div>
     `;
 
-    document.getElementById('loadingState').style.display = 'none';
+    var loadingEl = document.getElementById('loadingState');
+    if (loadingEl) loadingEl.style.display = 'none';
     document.querySelector('.container').innerHTML = html;
     resultsDisplayed = true;
 
