@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Click to upload
-    uploadArea.addEventListener('click', () => {
+    uploadArea.addEventListener('click', (event) => {
         if (event.target !== fileSelectBtn) {
             fileInput.click();
         }
@@ -3726,9 +3726,10 @@ function getColumnIndex(column) {
         'powerUsers': 2,
         'weeklyActions': 3,
         'actionsPerUser': 4,
-        'peakWeek': 5,
-        'weeklyHours': 6,
-        'monthlyValue': 7
+        'activeDays': 5,
+        'peakWeek': 6,
+        'weeklyHours': 7,
+        'monthlyValue': 8
     };
     return columnMap[column] || 0;
 }
