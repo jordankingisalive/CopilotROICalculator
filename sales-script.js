@@ -164,7 +164,7 @@ function renderResults(data) {
         payback: data.annualCost / (data.optimistic.monthlyValue + data.recapMonthlyValue)
     };
 
-    // Show recap controls only when recap actions are greater than zero
+    // Determine if we should show recap controls (only if recap actions > 0)
     const showRecap = data.recapActions > 0;
 
     const html = `
@@ -517,8 +517,7 @@ function renderResults(data) {
 
             <div style="text-align: center; margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
                 <button class="btn-secondary" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">← Modify Inputs</button>
-                <button class="btn-secondary" onclick="window.print()">Print Projections</button>
-                <button class="btn-primary" onclick="exportToEmail()">Email to Customer</button>
+                <button class="btn-primary" onclick="exportToEmail()">Email</button>
             </div>
         </div>
     `;

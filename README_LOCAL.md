@@ -95,7 +95,7 @@ You **must** use the local server launcher - opening `index.html` directly in th
 1. **Upload Your Data:** Use the CSV upload feature to analyze your organization's Copilot usage
 2. **Sample Data:** Try the sample data first to see how it works
 3. **Export Options:** Generate PDF reports, PowerPoint presentations, or Word documents
-4. **Privacy:** All processing happens in your browser - no data is uploaded anywhere
+4. **Privacy:** All processing happens in your browser - your CSV file and its contents are never uploaded
 
 ## 🔄 Updates
 

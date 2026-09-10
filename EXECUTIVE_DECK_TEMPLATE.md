@@ -130,7 +130,7 @@ The full `exportExecutiveDeck()` function is 600+ lines. Key sections:
 - **File:** `CopilotROICalculator/script.js`
 - **Lines:** 2642-3241
 - **Dependencies:** 
-  - `PptxGenJS` library (loaded from CDN in index.html)
+  - `PptxGenJS` library (bundled locally at `lib/pptxgen.bundle.js`, loaded in index.html)
   - `calculateMetrics()` function
   - `generateStoryNarrative()` function
   - Global `config` object (license cost, professional rate, minutes per action)
@@ -364,7 +364,7 @@ Before deploying any changes to the Executive Deck export:
 - **Main script:** `CopilotROICalculator/script.js` (lines 2642-3241)
 - **HTML page:** `CopilotROICalculator/index.html`
 - **Styles:** `CopilotROICalculator/styles.css`
-- **PptxGenJS library:** Loaded from CDN in index.html
+- **PptxGenJS library:** Bundled locally at `lib/pptxgen.bundle.js`, loaded in index.html
 
 ### Git Repositories
 - **Production:** https://github.com/jordankingisalive/CopilotROICalculator

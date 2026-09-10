@@ -4,7 +4,25 @@ let resultsDisplayed = false;
 let originalMinutesPerAction = null; // stores the user's default choice at first calculation
 let isDemoData = false; // tracks whether current data is demo or customer upload
 // Tooltip helper — returns inline HTML for a hover ? icon with explanation
-const tip = (text) => `<span class="info-tip"><span class="info-icon">?</span><span class="tip-text">${text}</span></span>`;
+// Tooltip copy is written as prose but always renders as bullets. Split on sentence
+// ends only when a capital follows, so "3.7x" and "$1." stay intact. An explicit "|"
+// wins if the caller wants to control the breaks. Lookbehind is avoided for Safari.
+const tipBullets = (text) => {
+    const raw = String(text == null ? '' : text).trim();
+    const parts = (raw.indexOf('|') !== -1
+        ? raw.split('|')
+        : raw.replace(/([a-z0-9%)\]"'’])\.\s+(?=[A-Z])/g, '$1\u0000').split('\u0000'))
+        .map(s => s.trim().replace(/\s*\.\s*$/, ''))
+        .filter(Boolean);
+    return parts;
+};
+const tip = (text) => {
+    const parts = tipBullets(text);
+    const body = parts.length > 1
+        ? `<ul class="tip-list">${parts.map(p => `<li>${p}</li>`).join('')}</ul>`
+        : `<ul class="tip-list"><li>${parts[0] || ''}</li></ul>`;
+    return `<span class="info-tip"><span class="info-icon">?</span><span class="tip-text">${body}</span></span>`;
+};
 // Collapsible section wrapper — renders as <details open> so user can collapse before PDF export
 const section = (title, content, extraClass = '') => `
 <details open class="collapsible-section ${extraClass}">
@@ -52,41 +70,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
     const fileSelectBtn = document.getElementById('fileSelectBtn');
 
+    // Pages that reuse script.js without the upload UI (e.g. demo.html) have none
+    // of these elements — bind defensively so the rest of this handler still runs.
+
     // File select button
-    fileSelectBtn.addEventListener('click', () => fileInput.click());
+    if (fileSelectBtn && fileInput) fileSelectBtn.addEventListener('click', () => fileInput.click());
 
     // File input change
-    fileInput.addEventListener('change', (e) => {
+    if (fileInput) fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
             handleFile(e.target.files[0]);
         }
     });
 
     // Drag and drop
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    });
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
 
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
-    });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
 
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
 
-        if (e.dataTransfer.files.length > 0) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    });
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
 
-    // Click to upload
-    uploadArea.addEventListener('click', (event) => {
-        if (event.target !== fileSelectBtn) {
-            fileInput.click();
-        }
-    });
+        // Click to upload
+        uploadArea.addEventListener('click', (event) => {
+            if (event.target !== fileSelectBtn && fileInput) {
+                fileInput.click();
+            }
+        });
+    }
 
     // Prevent Enter key on config inputs from triggering form submission / Calculate button
     document.querySelectorAll('.config-grid input[type="number"]').forEach(input => {
@@ -96,16 +119,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Config inputs — update config values, show recalculate prompt if results are visible
+    // Same defensive rule as the upload block: these inputs are absent on demo.html
+    // and run-locally.html, and an unguarded bind aborts the rest of this handler.
     function onConfigChange() {
         if (resultsDisplayed) showRecalculateBanner();
     }
 
-    document.getElementById('licensesCost').addEventListener('change', (e) => {
+    const licensesCostEl = document.getElementById('licensesCost');
+    if (licensesCostEl) licensesCostEl.addEventListener('change', (e) => {
         config.licenseCost = parseFloat(e.target.value);
         onConfigChange();
     });
 
-    document.getElementById('professionalRate').addEventListener('change', (e) => {
+    const professionalRateEl = document.getElementById('professionalRate');
+    if (professionalRateEl) professionalRateEl.addEventListener('change', (e) => {
         config.professionalRate = parseFloat(e.target.value);
         onConfigChange();
     });
@@ -114,21 +141,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const minutesSlider = document.getElementById('minutesPerAction');
     const minutesOutput = document.getElementById('minutesValue');
 
-    minutesSlider.addEventListener('input', (e) => {
+    if (minutesSlider) minutesSlider.addEventListener('input', (e) => {
         const value = parseFloat(e.target.value);
-        minutesOutput.textContent = `${value} min`;
+        if (minutesOutput) minutesOutput.textContent = `${value} min`;
         config.minutesPerAction = value;
         onConfigChange();
     });
 
 
 
-    document.getElementById('intelligentRecapActions').addEventListener('change', (e) => {
+    const intelligentRecapEl = document.getElementById('intelligentRecapActions');
+    if (intelligentRecapEl) intelligentRecapEl.addEventListener('change', (e) => {
         config.intelligentRecapActions = parseInt(e.target.value) || 0;
         onConfigChange();
     });
 
-    document.getElementById('totalPurchasedLicenses').addEventListener('change', (e) => {
+    const totalPurchasedLicensesEl = document.getElementById('totalPurchasedLicenses');
+    if (totalPurchasedLicensesEl) totalPurchasedLicensesEl.addEventListener('change', (e) => {
         config.totalPurchasedLicenses = parseInt(e.target.value) || 0;
         onConfigChange();
     });
@@ -150,26 +179,75 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Parsing a large export blocks the main thread for many seconds, so the overlay
+// has to be painted BEFORE the work starts — two rAFs guarantee a frame lands first.
+function showParseOverlay(file) {
+    hideParseOverlay();
+    const mb = file && file.size ? file.size / 1048576 : 0;
+    const scale = mb > 25 ? 'This is a large export, so it may take up to a minute.'
+        : mb > 5 ? 'This should take a few seconds.'
+        : 'This should only take a moment.';
+    const overlay = document.createElement('div');
+    overlay.id = 'parseLoadingOverlay';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;' +
+        'align-items:center;justify-content:center;text-align:center;padding:2rem;' +
+        'backdrop-filter:blur(2px);';
+    overlay.innerHTML =
+        '<div class="loading-spinner"></div>' +
+        '<p style="margin:0.25rem 0 0;font-family:var(--font-display);font-size:1.35rem;color:var(--text-primary);">Reading your data</p>' +
+        '<p style="margin:0.6rem 0 0;font-size:0.9375rem;color:var(--text-secondary);max-width:34ch;line-height:1.5;">' +
+        scale + ' Everything is processed in your browser, so nothing is uploaded.</p>' +
+        (mb ? '<p style="margin:0.75rem 0 0;font-size:0.8125rem;color:var(--text-tertiary);">' + mb.toFixed(1) + ' MB</p>' : '');
+    document.body.appendChild(overlay);
+}
+
+function hideParseOverlay() {
+    const el = document.getElementById('parseLoadingOverlay');
+    if (el) el.remove();
+}
+
+// Resolves after the browser has actually painted, not just after a timer fires.
+function afterPaint(fn) {
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(fn, 0)));
+}
+
 // Handle file upload
 function handleFile(file) {
-    if (!file.name.endsWith('.csv')) {
+    // Viva Insights exports arrive as ".Csv", so the extension check must be case-insensitive.
+    if (!/\.csv$/i.test(file.name)) {
         showError('Please upload a CSV file');
         return;
     }
 
+    showParseOverlay(file);
+
     const reader = new FileReader();
+    const readStartedAt = Date.now();
     reader.onload = (e) => {
-        try {
-            const csvData = e.target.result;
-            uploadedData = parseCSV(csvData);
-            config.analysisWeeks = uploadedData.detectedWeeks || 26;
-            isDemoData = false; // Mark as customer upload
-            showFilePreview(file.name, uploadedData);
-        } catch (error) {
-            showError('Error processing file: ' + error.message);
-        }
+        const csvData = e.target.result;
+        afterPaint(() => {
+            try {
+                uploadedData = parseCSV(csvData);
+                config.analysisWeeks = uploadedData.detectedWeeks || 26;
+                isDemoData = false; // Mark as customer upload
+                uploadedData.loadSeconds = (Date.now() - readStartedAt) / 1000;
+                if (window.InsightsShared) window.InsightsShared.saveSharedData(uploadedData, config);
+                showFilePreview(file.name, uploadedData);
+            } catch (error) {
+                if (error && error.code === 'UNSUPPORTED_FORMAT') {
+                    showUnsupportedFormatError(!!error.looksLikeHeatmap);
+                } else {
+                    showError('Error processing file: ' + error.message);
+                }
+            } finally {
+                hideParseOverlay();
+            }
+        });
     };
     reader.onerror = () => {
+        hideParseOverlay();
         showError('Error reading file');
     };
     reader.readAsText(file);
@@ -179,7 +257,8 @@ function handleFile(file) {
 // Skips fetch, skips DOM input writes, goes straight to renderResults().
 function loadDemoReportInstant(csvText) {
     try {
-        config.totalPurchasedLicenses = 8000;
+        // 350 purchased seats against the 300 distinct people in viva-demo-data.csv (~86% assignment).
+        config.totalPurchasedLicenses = 350;
         config.licenseCost = 30;
         config.minutesPerAction = 6;
         config.professionalRate = 78;
@@ -188,6 +267,7 @@ function loadDemoReportInstant(csvText) {
         uploadedData = parseCSV(csvText);
         config.analysisWeeks = uploadedData.detectedWeeks || 26;
         isDemoData = true;
+        if (window.InsightsShared) window.InsightsShared.saveSharedData(uploadedData, config);
 
         if (window.clarity) {
             try { clarity('event', 'demo_report_loaded_instant'); } catch (e) {}
@@ -198,7 +278,7 @@ function loadDemoReportInstant(csvText) {
         console.error('Error in instant demo render:', error);
         var container = document.querySelector('.container');
         if (container) {
-            container.innerHTML = '<div style="padding:3rem;text-align:center;color:#fff;"><h2>Unable to load demo</h2><p>' + (error && error.message ? error.message : 'Unknown error') + '</p><p><a href="index.html" style="color:#00D4FF;">Return to calculator</a></p></div>';
+            container.innerHTML = '<div class="error-box" style="padding:3rem;text-align:center;color:var(--text-primary);"><h2>Unable to load demo</h2><p>' + (error && error.message ? error.message : 'Unknown error') + '</p><p><a href="index.html" style="color:var(--accent);">Return to calculator</a></p></div>';
         }
     }
 }
@@ -218,20 +298,21 @@ async function loadDemoReport() {
             clarity('event', 'demo_report_loaded');
         }
 
-        // Fetch and parse demo data
-        const response = await fetch('demo-data.csv');
+        // Fetch and parse demo data (Viva Insights person query — 300 people, 7 orgs, 14 weeks)
+        const response = await fetch('viva-demo-data.csv');
         if (!response.ok) throw new Error('Failed to load demo data');
         const csvData = await response.text();
 
         // Pre-configure settings
-        config.totalPurchasedLicenses = 8000;
+        // 350 purchased seats against the 300 distinct people in viva-demo-data.csv (~86% assignment).
+        config.totalPurchasedLicenses = 350;
         config.licenseCost = 30;
         config.minutesPerAction = 6;
         config.professionalRate = 78;
         config.intelligentRecapActions = 0;
 
         // Update UI inputs
-        document.getElementById('totalPurchasedLicenses').value = 8000;
+        document.getElementById('totalPurchasedLicenses').value = 350;
         document.getElementById('licensesCost').value = 30;
         document.getElementById('minutesPerAction').value = 6;
         document.getElementById('professionalRate').value = 78;
@@ -241,6 +322,7 @@ async function loadDemoReport() {
         uploadedData = parseCSV(csvData);
         config.analysisWeeks = uploadedData.detectedWeeks || 26;
         isDemoData = true; // Mark as demo data
+        if (window.InsightsShared) window.InsightsShared.saveSharedData(uploadedData, config);
 
         // Run full calculation automatically
         await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for effect
@@ -262,6 +344,28 @@ async function loadDemoReport() {
     }
 }
 
+// Agree a count with its grouping label. The label is whatever column the user
+// grouped by ("Organization", "FunctionType", "Region", a custom attribute, or
+// the "teams" fallback), so it has to be singularised as well as pluralised.
+function formatGroupCount(count, label) {
+    const raw = String(label == null ? '' : label).trim() || 'teams';
+    // Anything not ending in a letter (codes, IDs with punctuation) reads badly
+    // with an appended "s" — fall back to a neutral construction.
+    if (!/[A-Za-z]$/.test(raw)) return `${count} groups (${raw})`;
+    if (count === 1) {
+        if (/ies$/i.test(raw)) return `1 ${raw.slice(0, -3)}y`;
+        if (/(ches|shes|xes|zes|sses)$/i.test(raw)) return `1 ${raw.slice(0, -2)}`;
+        if (/ss$/i.test(raw)) return `1 ${raw}`;
+        if (/s$/i.test(raw)) return `1 ${raw.slice(0, -1)}`;
+        return `1 ${raw}`;
+    }
+    if (/(s|x|z|ch|sh)$/i.test(raw)) {
+        return /s$/i.test(raw) ? `${count} ${raw}` : `${count} ${raw}es`;
+    }
+    if (/[^aeiouAEIOU]y$/.test(raw)) return `${count} ${raw.slice(0, -1)}ies`;
+    return `${count} ${raw}s`;
+}
+
 // Show file preview with Calculate button
 function showFilePreview(fileName, data) {
     const rows = data.rows;
@@ -269,41 +373,87 @@ function showFilePreview(fileName, data) {
     const totalWeeklyActions = rows.reduce((s, r) => s + r.weeklyActions, 0);
     const groupLabel = data.groupLabel || 'teams';
 
+    // Reading is the slow part; calculating is far quicker. Round up to a coarse
+    // bucket so the number reads as an expectation, not a precise measurement.
+    const roundUpSeconds = (s) => {
+        if (s <= 3) return 'a few seconds';
+        if (s <= 10) return 'about 10 seconds';
+        if (s <= 20) return 'about 20 seconds';
+        if (s <= 30) return 'about 30 seconds';
+        if (s <= 45) return 'about 45 seconds';
+        const mins = Math.ceil(s / 30) / 2; // round up to the next half minute
+        return 'about ' + mins + (mins === 1 ? ' minute' : ' minutes');
+    };
+    const loadNote = data.loadSeconds
+        ? `<div style="margin-top:1rem; font-size:0.875rem; color:var(--text-secondary);">
+               This file took <strong>${roundUpSeconds(data.loadSeconds)}</strong> to read.
+               Calculating is quicker &mdash; the report will appear on its own once it is done.
+           </div>`
+        : '';
+
+    // ---- Grouping picker (Viva Insights only) ----
+    // Customers commonly want to cut data by something other than Organization (Team, Division,
+    // Custom Division, Leader 1, Cost Center, etc.). We auto-detect candidate columns during
+    // parseVivaInsights and let the user pick before they hit Calculate.
+    const candidates = (data.groupingCandidates || []);
+    const currentGrouping = data.currentGrouping || data.groupLabel || 'Organization';
+    let groupingPickerHtml = '';
+    if (candidates.length > 1) {
+        const options = candidates.map(c => {
+            const sel = c.name === currentGrouping ? 'selected' : '';
+            return `<option value="${c.name}" ${sel}>${c.name} (${c.distinctCount} groups, ${c.coverage}% covered)</option>`;
+        }).join('');
+        groupingPickerHtml = `
+            <div style="background: var(--surface-raised, #253449); border: 1px solid var(--border, rgba(255,255,255,0.08)); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+                <label for="groupingSelect" style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary, #F1F5F9); margin-bottom: 0.4rem;">
+                    Group results by
+                    <span title="Choose which demographic column to slice the report by. Defaults to Organization (the canonical Viva Insights column). Other detected fields are listed below — pick whichever matches how your business operates (Team, Division, Cost Center, Leader, etc.). Methodology: any column with 2&ndash;500 distinct values where each value covers at least 2 people and the column is &ge;50% populated is offered as a candidate." style="cursor: help; color: var(--text-secondary, #94A3B8); margin-left: 0.25rem; font-weight: 400;">&#9432;</span>
+                </label>
+                <select id="groupingSelect" onchange="handleGroupingChange(this.value)" style="width: 100%; padding: 0.6rem 0.75rem; font-size: 0.95rem; background: var(--surface, #1E293B); color: var(--text-primary, #F1F5F9); border: 1px solid var(--border, rgba(255,255,255,0.12)); border-radius: 8px; font-family: inherit; cursor: pointer;">
+                    ${options}
+                </select>
+                <div style="font-size: 0.78rem; color: var(--text-secondary, #94A3B8); margin-top: 0.4rem; line-height: 1.4;">
+                    Aggregation rule: any group with &lt;5 distinct people, or blank/N/A, is rolled into &ldquo;Other&rdquo; (matches the Microsoft Analytics Hub <a href="https://microsoft.github.io/Analytics-Hub/" target="_blank" rel="noopener" style="color: var(--copilot-cyan, #00D4FF); text-decoration: none;">Super User Adoption</a> template).
+                </div>
+            </div>
+        `;
+    }
+
     const previewHtml = `
-        <div style="background: var(--surface, #1E293B); border: 1px solid var(--border, rgba(255,255,255,0.08)); border-radius: 16px; padding: 2rem; margin: 1.5rem 0; animation: fadeIn 0.4s ease;">
+        <div style="background: var(--ink-700); border: 1px solid var(--rule); border-radius: 10px; padding: 1.75rem 2rem; margin: 1.5rem 0; animation: fadeIn 0.4s ease;">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
-                <span style="font-size: 1.5rem;">✅</span>
                 <div>
-                    <div style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary, #F1F5F9);">${fileName}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary, #94A3B8);">File loaded successfully</div>
+                    <div style="font-weight: 600; font-size: 1.0625rem; color: var(--text-primary);">${fileName}</div>
+                    <div style="font-size: 0.8125rem; color: var(--text-tertiary);">File loaded successfully${data.detectedLocale && data.detectedLocale !== 'en-US' ? ' &middot; Detected locale: ' + data.detectedLocale + ' (normalized to en-US)' : ''}</div>
                 </div>
             </div>
 
+            ${groupingPickerHtml}
+
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                 <div style="background: var(--surface-raised, #253449); border-radius: 10px; padding: 1rem; text-align: center; border: 1px solid var(--border, rgba(255,255,255,0.08));">
-                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--copilot-cyan, #00D4FF);">${rows.length}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary, #94A3B8); text-transform: uppercase; letter-spacing: 0.5px;">${groupLabel}</div>
+                    <div id="previewGroupCount" style="font-size: 1.5rem; font-weight: 700; color: var(--copilot-cyan, #00D4FF);">${rows.length}</div>
+                    <div id="previewGroupLabel" style="font-size: 0.8rem; color: var(--text-secondary, #94A3B8); text-transform: uppercase; letter-spacing: 0.5px;">${groupLabel}</div>
                 </div>
                 <div style="background: var(--surface-raised, #253449); border-radius: 10px; padding: 1rem; text-align: center; border: 1px solid var(--border, rgba(255,255,255,0.08));">
-                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--copilot-cyan, #00D4FF);">${totalUsers.toLocaleString(undefined, {maximumFractionDigits: 2})}</div>
+                    <div id="previewUserCount" style="font-size: 1.5rem; font-weight: 700; color: var(--copilot-cyan, #00D4FF);">${totalUsers.toLocaleString(undefined, {maximumFractionDigits: 2})}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary, #94A3B8); text-transform: uppercase; letter-spacing: 0.5px;">Licensed Users</div>
                 </div>
                 <div style="background: var(--surface-raised, #253449); border-radius: 10px; padding: 1rem; text-align: center; border: 1px solid var(--border, rgba(255,255,255,0.08));">
-                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--copilot-cyan, #00D4FF);">${totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 2})}</div>
+                    <div id="previewActionCount" style="font-size: 1.5rem; font-weight: 700; color: var(--copilot-cyan, #00D4FF);">${totalWeeklyActions.toLocaleString(undefined, {maximumFractionDigits: 2})}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary, #94A3B8); text-transform: uppercase; letter-spacing: 0.5px;">Weekly Actions</div>
                 </div>
             </div>
 
             <div style="display: flex; gap: 1rem; align-items: center;">
-                <button type="button" onclick="runCalculation()" style="flex: 1; padding: 1rem; font-size: 1.1rem; font-weight: 700; background: linear-gradient(135deg, #4A9EF7, #A855F7); color: #fff; border: none; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; font-family: inherit;"
-                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 24px rgba(74,158,247,0.3)';"
-                    onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                <button type="button" class="btn-primary" onclick="runCalculation()" style="flex: 1;">
                     Calculate Productivity ROI
                 </button>
-                <button type="button" onclick="location.reload()" style="padding: 1rem 1.5rem; font-size: 0.9rem; font-weight: 600; background: transparent; color: var(--text-secondary, #94A3B8); border: 1px solid var(--border, rgba(255,255,255,0.08)); border-radius: 10px; cursor: pointer; font-family: inherit;">
+                <button type="button" class="btn-secondary" onclick="location.reload()">
                     Reset
                 </button>
             </div>
+            ${loadNote}
         </div>
     `;
 
@@ -352,12 +502,44 @@ function runCalculation() {
     }, 300);
 }
 
+// Handle a change to the grouping picker on the file-preview pane.
+// Re-aggregates the Viva Insights data under the chosen field and refreshes preview stats.
+// If results are already on-screen, also re-renders them.
+function handleGroupingChange(newGrouping) {
+    if (!uploadedData || !uploadedData.isVivaInsights) return;
+    if (!newGrouping || newGrouping === uploadedData.currentGrouping) return;
+    try {
+        reaggregateVivaByGrouping(uploadedData, newGrouping);
+        // Refresh preview tiles
+        const rows = uploadedData.rows;
+        const totalUsers = rows.reduce((s, r) => s + r.enabledUsers, 0);
+        const totalWeekly = rows.reduce((s, r) => s + r.weeklyActions, 0);
+        const elGroupCount = document.getElementById('previewGroupCount');
+        const elGroupLabel = document.getElementById('previewGroupLabel');
+        const elUserCount  = document.getElementById('previewUserCount');
+        const elActionCnt  = document.getElementById('previewActionCount');
+        if (elGroupCount) elGroupCount.textContent = rows.length;
+        if (elGroupLabel) elGroupLabel.textContent = newGrouping;
+        if (elUserCount)  elUserCount.textContent  = totalUsers.toLocaleString(undefined, {maximumFractionDigits: 2});
+        if (elActionCnt)  elActionCnt.textContent  = totalWeekly.toLocaleString(undefined, {maximumFractionDigits: 2});
+        // If a calculation has already rendered, refresh shared storage + re-render
+        if (resultsDisplayed) {
+            saveSharedData();
+            runCalculation();
+        }
+        console.log(`[handleGroupingChange] Switched to "${newGrouping}" -> ${rows.length} groups`);
+    } catch (e) {
+        console.error('[handleGroupingChange] failed:', e);
+        showError('Could not re-aggregate by ' + newGrouping + ': ' + e.message);
+    }
+}
+
 // Show a banner prompting user to recalculate after config changes
 function showRecalculateBanner() {
     if (document.getElementById('recalcBanner')) return; // already visible
     const banner = document.createElement('div');
     banner.id = 'recalcBanner';
-    banner.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:9999;background:linear-gradient(135deg,#4A9EF7,#A855F7);color:#fff;padding:0.75rem 1.5rem;border-radius:12px;font-weight:600;font-size:0.95rem;cursor:pointer;box-shadow:0 8px 32px rgba(74,158,247,0.35);display:flex;align-items:center;gap:0.75rem;font-family:inherit;animation:fadeIn 0.3s ease;';
+    banner.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:9999;background:var(--ink-600);color:var(--text-primary);border:1px solid var(--rule-strong);box-shadow:0 8px 32px var(--shadow);padding:0.75rem 1.5rem;border-radius:12px;font-weight:600;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;gap:0.75rem;font-family:inherit;animation:fadeIn 0.3s ease;';
     banner.innerHTML = '⟳ Settings changed &mdash; <span style="text-decoration:underline;cursor:pointer;">Recalculate</span>';
     banner.addEventListener('click', () => {
         dismissRecalculateBanner();
@@ -379,27 +561,735 @@ function parseCSV(csvText) {
     }
 
     // Parse header
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
 
-    // Parse rows
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        if (values.length === headers.length) {
-            const row = {};
-            headers.forEach((header, index) => {
-                row[header] = values[index];
-            });
-            rows.push(row);
+    // ---- Header normalization: en-GB → en-US and es → en-US ----
+    // Mirrors the Power Query M code in the Super User Adoption template so the rest of
+    // the report can rely on canonical en-US column names regardless of the customer's locale.
+    let headers = rawHeaders;
+    let detectedLocale = 'en-US';
+    if (window.HeaderMapping) {
+        detectedLocale = window.HeaderMapping.detectLocale(rawHeaders);
+        headers = window.HeaderMapping.normalizeHeaders(rawHeaders);
+        if (detectedLocale !== 'en-US') {
+            console.log(`[parseCSV] Detected locale ${detectedLocale}, normalized headers to en-US`);
         }
     }
 
-    if (rows.length === 0) {
-        throw new Error('No valid data rows found in CSV');
+    // ---- Viva Insights per-person export fast path ----
+    // Detected when the Viva PersonId + MetricDate + Total Copilot actions taken columns are present.
+    // This bypasses the aggregated-org flattenData() path so we can compute real per-user cohorts.
+    if (detectVivaInsights(headers)) {
+        const result = parseVivaInsights(lines, headers);
+        result.detectedLocale = detectedLocale;
+        result.rawHeaders = rawHeaders;
+        return result;
     }
 
-    // Flatten and normalize data
-    return flattenData(rows);
+    // Everything else is rejected. The Viva Insights person query is the only export with
+    // one row per person per week, which the canonical Usage Threshold cohorts require.
+    // flattenData() below is retained but is no longer reachable from the upload path.
+    const err = new Error(UNSUPPORTED_FORMAT_TEXT);
+    err.code = 'UNSUPPORTED_FORMAT';
+    err.looksLikeHeatmap = looksLikeHeatmapExport(headers);
+    throw err;
+}
+
+// Plain-text fallback used when the rich rejection UI is unavailable (e.g. demo.html).
+const UNSUPPORTED_FORMAT_TEXT = 'This file doesn\u2019t look like a Viva Insights person-query export, which is the only format the calculator accepts. Your CSV must contain PersonId, MetricDate and Total Copilot actions taken. See Step 1 for how to export it.';
+
+// Recognize the retired Super Usage Report heatmap export so the rejection message can
+// name it explicitly instead of showing generic "unsupported file" guidance.
+function looksLikeHeatmapExport(headers) {
+    const set = new Set(headers.map(h => String(h).trim().toLowerCase()));
+    const signature = [
+        'organization (aggregated)', 'team/division name', 'enabled users', 'active users',
+        '% active users', 'average copilot actions', 'total actions', 'monthly actions', 'engagement %'
+    ];
+    const hits = signature.filter(c => set.has(c)).length;
+    // Wide heatmap exports name each column "YYYY-MM-DD <Metric>".
+    const wideDateCols = headers.filter(h => /^\d{4}-\d{2}-\d{2}\s+\S/.test(String(h).trim())).length;
+    return hits >= 2 || wideDateCols >= 2;
+}
+
+// Identify a Viva Insights per-person weekly export by the column signature.
+// We deliberately ignore DisplayName / full_name_* (anonymization artifacts) and key off
+// the columns the Power BI "Super User Impact" model is built on.
+function detectVivaInsights(headers) {
+    const set = new Set(headers.map(h => h.toLowerCase()));
+    return set.has('personid') && set.has('metricdate') && set.has('total copilot actions taken');
+}
+
+// Parse a Viva Insights per-person, per-week CSV.
+// Returns the same { rows, weeklyData, groupLabel, detectedWeeks, dateRange, sortedDates }
+// shape that the rest of the report consumes, PLUS:
+//   personCohorts  - real per-user Usage Threshold tiers (replaces the broken team-percentile table)
+//   personIndex    - slim per-person history used by computeCohortsForPeriod()
+//   isVivaInsights - flag so renderers know real cohorts are available
+function parseVivaInsights(lines, headers) {
+    // Build a lower-cased header -> index map so we tolerate header drift.
+    const hidx = {};
+    headers.forEach((h, i) => { hidx[h.trim().toLowerCase()] = i; });
+    const col = (name) => hidx[name.toLowerCase()];
+
+    // Required columns
+    const iPerson   = col('PersonId');
+    const iDate     = col('MetricDate');
+    const iActions  = col('Total Copilot actions taken');
+    if (iPerson == null || iDate == null || iActions == null) {
+        throw new Error('Viva Insights export missing PersonId, MetricDate, or Total Copilot actions taken');
+    }
+    // Optional columns we use when present
+    const iActiveDays  = col('Total Copilot active days');
+    const iEnabledDays = col('Total Copilot enabled days');
+    const iAssistHrs   = col('Copilot assisted hours');
+    const iIntelRecap  = col('Intelligent recap actions taken');
+    const iOrg         = col('Organization');
+    const iFunction    = col('FunctionType');
+
+    // ---- Grouping candidate detection ----
+    // The Viva Insights template normalizes one column to "Organization", but customers also
+    // commonly include other demographic cuts like Team, Division, Custom Division, Leader 1/2/3,
+    // Cost Center, Region, etc. Identify every plausible grouping column up front so the user
+    // can swap the slicer post-load. A column is a candidate if:
+    //   - it is not a known canonical metric / identity column, AND
+    //   - it is not numeric-looking, AND
+    //   - it eventually shows 2..500 distinct non-blank values with each value covering >=2 persons.
+    // The metric-skiplist comes from the M code OptimizedTypeMap (numeric columns) plus our own
+    // identity exclusions.
+    const SKIP_GROUPING = new Set([
+        'personid','displayname','metricdate','timezone','weekenddays','isactive',
+        'full_name_1','full_name_2','full_name_3','full_name_4','full_name_5','full_name_6','full_name_7'
+    ]);
+    const METRIC_PATTERN = /(hours?|actions?|prompts?|days?|users?|emails?|chats?|messages?|meetings?|calls?|visits?|posts?|reactions?|replies|ties|size|span|count|recap|reuniones|llamadas|horas|días|dias|indicaciones|chats|correos|relaciones)/i;
+    const groupingCandidateIdx = [];
+    headers.forEach((h, idx) => {
+        const lo = h.trim().toLowerCase();
+        if (SKIP_GROUPING.has(lo)) return;
+        if (METRIC_PATTERN.test(lo)) return;
+        // "IsActiveInX" columns are boolean feature flags, not demographic cuts.
+        if (/^isactivein/.test(lo)) return;
+        groupingCandidateIdx.push({ idx, name: h.trim() });
+    });
+    // Per-candidate-per-person value collection (latest non-blank wins, same convention as org).
+    const groupingValuesByPerson = {}; // { personId: { Organization: '...', Team: '...' } }
+    const groupingDistinct = {};        // { columnName: { value: Set(personId) } }
+    groupingCandidateIdx.forEach(c => { groupingDistinct[c.name] = {}; });
+
+    // ---- Per-app columns (e.g. "Copilot actions taken in Word", "Chat actions taken in Teams") ----
+    // We detect any column whose lowercase name matches /actions? taken in (\w[\w &]*)/ and capture
+    // the app label after "in". Used for the per-app attribution + behavioral profile pages.
+    const appColumns = [];
+    headers.forEach((h, idx) => {
+        const lo = h.trim().toLowerCase();
+        const m = lo.match(/^(?:copilot|chat|summari[sz]e|create|edit|draft|rewrite)?\s*(?:actions?|messages?|drafts?|summari[sz]ations?)\s+taken\s+in\s+(.+)$/i);
+        if (m) {
+            const app = m[1].replace(/\s+/g, ' ').trim();
+            // Skip if it's just rolling up to "total" or another umbrella
+            if (!/^total\b/i.test(app)) {
+                appColumns.push({ idx, app: app.replace(/\b\w/g, c => c.toUpperCase()) });
+            }
+        }
+    });
+    const hasAppData = appColumns.length > 0;
+
+    // ---- First pass: build slim per-person weekly index, raw org rollup, date set ----
+    // personIndex[personId] = { org, fn, weeks: [{d, a, ad, ed, ah, ir, apps?}, ...] }
+    const personIndex = {};
+    const dateSet = new Set();
+
+    // Local-tz YYYY-MM-DD formatter (avoids UTC drift from toISOString)
+    const toDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    for (let li = 1; li < lines.length; li++) {
+        const v = parseCSVLine(lines[li]);
+        if (v.length < headers.length) continue;
+
+        const personId = v[iPerson];
+        const rawDate = (v[iDate] || '').trim();
+        const parsedDate = parseDate(rawDate);
+        if (!personId || !parsedDate) continue;
+        const dateStr = toDateKey(parsedDate);
+
+        const actions = parseNumber(v[iActions]);
+        const activeDays  = iActiveDays  != null ? parseNumber(v[iActiveDays])  : 0;
+        const enabledDays = iEnabledDays != null ? parseNumber(v[iEnabledDays]) : 0;
+        const assistHrs   = iAssistHrs   != null ? parseNumber(v[iAssistHrs])   : 0;
+        const intelRecap  = iIntelRecap  != null ? parseNumber(v[iIntelRecap])  : 0;
+        const orgRaw      = iOrg      != null ? (v[iOrg]      || '').trim() : 'Unassigned';
+        const fnRaw       = iFunction != null ? (v[iFunction] || '').trim() : '';
+
+        if (!personIndex[personId]) {
+            personIndex[personId] = { org: orgRaw, fn: fnRaw, weeks: [] };
+        } else if (orgRaw && personIndex[personId].org !== orgRaw) {
+            // Person changed orgs mid-window: latest non-blank wins
+            personIndex[personId].org = orgRaw;
+        }
+
+        // Capture per-person grouping-candidate values (latest non-blank wins).
+        if (groupingCandidateIdx.length) {
+            const bag = groupingValuesByPerson[personId] || (groupingValuesByPerson[personId] = {});
+            for (const c of groupingCandidateIdx) {
+                const val = (v[c.idx] || '').trim();
+                if (val) {
+                    bag[c.name] = val;
+                    const dist = groupingDistinct[c.name];
+                    if (!dist[val]) dist[val] = new Set();
+                    dist[val].add(personId);
+                }
+            }
+        }
+        personIndex[personId].weeks.push({
+            d: dateStr,
+            a: actions,
+            ad: activeDays,
+            ed: enabledDays,
+            ah: assistHrs,
+            ir: intelRecap,
+            apps: hasAppData ? (() => {
+                const map = {};
+                for (const { idx, app } of appColumns) {
+                    const n = parseNumber(v[idx]);
+                    if (n) map[app] = (map[app] || 0) + n;
+                }
+                return map;
+            })() : null
+        });
+        dateSet.add(dateStr);
+    }
+
+    const sortedDates = [...dateSet].sort();
+    if (sortedDates.length === 0) {
+        throw new Error('Viva Insights export contained no parseable weekly snapshots');
+    }
+
+    // Sort each person's weeks ascending — needed for rolling-window threshold logic
+    Object.values(personIndex).forEach(p => p.weeks.sort((a, b) => a.d.localeCompare(b.d)));
+
+    // ---- Finalize grouping candidates ----
+    // Keep columns with 2..500 distinct non-blank values where each value covers >=2 persons.
+    // Attach the per-person bag to personIndex so re-aggregation later can switch the slicer.
+    const totalPersons = Object.keys(personIndex).length;
+    const groupingCandidates = [];
+    groupingCandidateIdx.forEach(c => {
+        const dist = groupingDistinct[c.name];
+        const distinctVals = Object.keys(dist);
+        if (distinctVals.length < 2 || distinctVals.length > 500) return;
+        // A real demographic column can legitimately contain one-person groups (a lone
+        // director, a new team). Only reject columns that behave like unique IDs, i.e.
+        // fewer than two values that group more than one person. The "Organization
+        // (Aggregated)" rule below still rolls sub-5-person groups into "Other".
+        const groupedVals = distinctVals.filter(v => dist[v].size >= 2).length;
+        if (groupedVals < 2) return;
+        // Coverage: how many persons have ANY value here
+        const coverage = distinctVals.reduce((s, v) => s + dist[v].size, 0) / totalPersons;
+        if (coverage < 0.5) return; // skip columns that are mostly blank
+        groupingCandidates.push({
+            name: c.name,
+            distinctCount: distinctVals.length,
+            sampleValues: distinctVals.slice(0, 8),
+            coverage: Math.round(coverage * 100)
+        });
+    });
+    // Stamp each person's grouping bag for use during re-aggregation
+    Object.keys(personIndex).forEach(pid => {
+        personIndex[pid].groupings = groupingValuesByPerson[pid] || {};
+    });
+    // Pick default grouping: Organization > FunctionType > first candidate
+    let defaultGrouping = 'Organization';
+    if (!groupingCandidates.some(g => g.name === defaultGrouping)) {
+        if (groupingCandidates.some(g => g.name === 'FunctionType')) defaultGrouping = 'FunctionType';
+        else if (groupingCandidates.length) defaultGrouping = groupingCandidates[0].name;
+    }
+    console.log(`[parseVivaInsights] Grouping candidates: ${groupingCandidates.map(g => g.name + '(' + g.distinctCount + ')').join(', ')}; default=${defaultGrouping}`);
+
+    // ---- Organization (Aggregated) rule from the Power BI model ----
+    // Distinct PersonIDs per org. Orgs with <5 distinct users OR blank/N/A/Unassigned are rolled to "Other".
+    const personsPerOrg = {};
+    Object.entries(personIndex).forEach(([pid, p]) => {
+        const o = p.org || 'Unassigned';
+        if (!personsPerOrg[o]) personsPerOrg[o] = new Set();
+        personsPerOrg[o].add(pid);
+    });
+    const orgAggregatedName = (raw) => {
+        const trimmed = (raw || '').trim();
+        if (!trimmed || trimmed.toLowerCase() === 'n/a' || trimmed.toLowerCase() === 'unassigned') return 'Other';
+        const count = personsPerOrg[trimmed] ? personsPerOrg[trimmed].size : 0;
+        if (count < 5) return 'Other';
+        return trimmed;
+    };
+    // Stamp the aggregated name onto each person (used by aggregation passes below)
+    Object.values(personIndex).forEach(p => { p.orgAgg = orgAggregatedName(p.org); });
+
+    // ---- Second pass: aggregate to org × week cells ----
+    // For each (org, week): distinct persons, persons-with-actions, sum actions, sum active days, sum enabled days.
+    // orgWeekCells[org][date] = { persons, withActions, actionsSum, activeDaysSum, enabledDaysSum, assistHrsSum, intelRecapSum, enabledPersons }
+    const orgWeekCells = {};
+    Object.entries(personIndex).forEach(([pid, p]) => {
+        const o = p.orgAgg;
+        if (!orgWeekCells[o]) orgWeekCells[o] = {};
+        p.weeks.forEach(w => {
+            const cell = orgWeekCells[o][w.d] || (orgWeekCells[o][w.d] = {
+                persons: 0, withActions: 0, actionsSum: 0, activeDaysSum: 0,
+                enabledDaysSum: 0, assistHrsSum: 0, intelRecapSum: 0, enabledPersons: 0
+            });
+            cell.persons += 1;
+            if (w.a > 0) cell.withActions += 1;
+            cell.actionsSum    += w.a;
+            cell.activeDaysSum += w.ad;
+            cell.enabledDaysSum += w.ed;
+            cell.assistHrsSum  += w.ah;
+            cell.intelRecapSum += w.ir;
+            if (w.ed > 0) cell.enabledPersons += 1;
+        });
+    });
+
+    // ---- Build orgWeeklyData (matches the wide-format shape consumed by the report) ----
+    const orgWeeklyData = {};
+    const orgRows = [];
+    Object.entries(orgWeekCells).forEach(([orgName, byDate]) => {
+        const weekly = sortedDates.map(d => {
+            const c = byDate[d];
+            if (!c) return null;
+            const enabled        = c.enabledPersons || c.persons; // fall back to persons seen if enabledDays missing
+            const activePercent  = c.persons > 0 ? (c.withActions / c.persons) * 100 : 0;
+            const actionsPerUser = c.withActions > 0 ? c.actionsSum / c.withActions : 0;
+            const activeDays     = c.persons > 0 ? c.activeDaysSum / c.persons : 0;
+            // Power-user % at the org/week level is filled in during cohort assignment below.
+            return {
+                date: parseDate(d),
+                actionsPerUser,
+                activePercent,
+                powerPercent: 0, // patched after threshold computation
+                activeDays,
+                enabled
+            };
+        }).filter(Boolean);
+        if (weekly.length === 0) return;
+        orgWeeklyData[orgName] = weekly;
+
+        // Build the summary row using the average-across-weeks pattern the rest of the app uses.
+        const last = weekly[weekly.length - 1];
+        const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+        const activePercent  = avg(weekly.map(w => w.activePercent).filter(v => v > 0));
+        const actionsPerUser = avg(weekly.map(w => w.actionsPerUser).filter(v => v > 0));
+        const avgActiveDays  = avg(weekly.map(w => w.activeDays).filter(v => v > 0));
+        const enabledUsers   = last.enabled;
+        const activeUsers    = Math.round((enabledUsers * activePercent) / 100);
+        const weeklyActions  = actionsPerUser * activeUsers;
+        const monthlyActions = weeklyActions * 4.33;
+        orgRows.push({
+            team: orgName,
+            enabledUsers,
+            activeUsers,
+            weeklyActions,
+            monthlyActions,
+            engagement: avgActiveDays,
+            actionsPerUser,
+            powerUsers: 0 // filled in after cohort pass
+        });
+    });
+
+    // ---- Third pass: compute Usage Threshold per (person, week) using 12-week rolling window ----
+    // Mirrors the Power BI calculated columns:
+    //   _Total Copilot actions_RL12W = AVERAGEX over [date, date-7, ..., date-77]
+    //   _IsHabit_RL12W              = COUNTROWS where actions >= 1 in that window >= 9
+    //   Usage Threshold             = SWITCH(...) (Power / Habitual / Novice / Low / Non)
+    const THRESHOLDS = ['Power Users', 'Habitual Users', 'Novice Users', 'Low Users', 'Non Users'];
+    const classify = (avg12, habit) => {
+        if (avg12 >= 20 && habit) return 'Power Users';
+        if (avg12 >= 8  && habit) return 'Habitual Users';
+        if (avg12 >= 1)           return 'Novice Users';
+        if (avg12 >  0)           return 'Low Users';
+        return 'Non Users';
+    };
+    Object.values(personIndex).forEach(p => {
+        // Build a date->actions lookup so rolling math is O(weeks) per person.
+        const byDate = {};
+        p.weeks.forEach(w => { byDate[w.d] = w.a; });
+        p.weeks.forEach(w => {
+            // Build a list of up to 12 trailing week-date strings (-0, -7, ..., -77 days)
+            const base = parseDate(w.d);
+            if (!base) { w.threshold = 'Non Users'; return; }
+            let sum = 0, count = 0, nonZero = 0;
+            for (let k = 0; k < 12; k++) {
+                const dt = new Date(base.getFullYear(), base.getMonth(), base.getDate() - k * 7);
+                const key = toDateKey(dt);
+                if (Object.prototype.hasOwnProperty.call(byDate, key)) {
+                    const a = byDate[key];
+                    sum += a;
+                    count += 1;
+                    if (a >= 1) nonZero += 1;
+                }
+            }
+            const avg12 = count > 0 ? sum / count : 0;
+            const habit = nonZero >= 9;
+            w.threshold = classify(avg12, habit);
+            w.avg12 = avg12;
+        });
+    });
+
+    // ---- Patch powerPercent / powerUsers into the org weekly cells & summary rows ----
+    // For each (org, week): count persons whose threshold AT THAT WEEK is "Power Users".
+    const orgWeekPower = {}; // orgWeekPower[org][date] = count
+    Object.values(personIndex).forEach(p => {
+        const o = p.orgAgg;
+        if (!orgWeekPower[o]) orgWeekPower[o] = {};
+        p.weeks.forEach(w => {
+            if (w.threshold === 'Power Users') {
+                orgWeekPower[o][w.d] = (orgWeekPower[o][w.d] || 0) + 1;
+            }
+        });
+    });
+    Object.entries(orgWeeklyData).forEach(([orgName, weekly]) => {
+        weekly.forEach(week => {
+            const key = week.date instanceof Date ? toDateKey(week.date) : week.date;
+            const powerCount = (orgWeekPower[orgName] && orgWeekPower[orgName][key]) || 0;
+            const cell = orgWeekCells[orgName][key];
+            const persons = cell ? cell.persons : 0;
+            week.powerPercent = persons > 0 ? (powerCount / persons) * 100 : 0;
+        });
+    });
+    // Refresh summary rows' powerUsers from the recent-4-weeks avg, same convention as the wide-format branch.
+    orgRows.forEach(row => {
+        const weekly = orgWeeklyData[row.team];
+        const recent = weekly.slice(-4);
+        const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+        const recentPowerPct = avg(recent.map(w => w.powerPercent).filter(v => v > 0));
+        row.powerUsers = Math.round((row.enabledUsers * recentPowerPct) / 100);
+    });
+
+    // ---- Person cohorts: compute for the default "all" window so the initial render has data ----
+    const personCohorts = computePersonCohortsFromIndex(personIndex, new Set(sortedDates), sortedDates);
+
+    // ---- detectedWeeks + dateRange ----
+    let detectedWeeks = sortedDates.length;
+    if (sortedDates.length >= 2) {
+        const spanDays = (new Date(sortedDates[sortedDates.length - 1]) - new Date(sortedDates[0])) / 86400000;
+        detectedWeeks = Math.max(Math.round(spanDays / 7) + 1, sortedDates.length);
+    }
+    const dateRange = sortedDates.length >= 2
+        ? `${sortedDates[0]} to ${sortedDates[sortedDates.length - 1]}`
+        : sortedDates[0];
+
+    console.log(`Viva Insights: ${Object.keys(personIndex).length} persons, ${Object.keys(orgWeeklyData).length} orgs (post-aggregation), ${sortedDates.length} weeks`);
+
+    return {
+        rows: orgRows,
+        mapping: {},
+        weeklyData: orgWeeklyData,
+        groupLabel: defaultGrouping,
+        groupingCandidates,
+        currentGrouping: defaultGrouping,
+        detectedWeeks,
+        dateRange,
+        sortedDates,
+        personIndex,
+        personCohorts,
+        isVivaInsights: true,
+        hasAppData,
+        appColumns: appColumns.map(c => c.app)
+    };
+}
+
+// Re-aggregate an existing parseVivaInsights() result under a different grouping field
+// (e.g. 'Organization' → 'Team', 'Division', 'Custom Division', 'Leader 1', etc.).
+// Mutates the result object's rows / weeklyData / groupLabel / currentGrouping in place and returns it.
+// personIndex is left intact; only the per-group rollups are recomputed.
+function reaggregateVivaByGrouping(viva, groupingName) {
+    if (!viva || !viva.isVivaInsights || !viva.personIndex) return viva;
+    const personIndex = viva.personIndex;
+    const sortedDates = viva.sortedDates;
+    const toDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    // Resolve per-person group value for the chosen field
+    const valueOf = (p) => {
+        if (groupingName === 'Organization') return (p.org || '').trim();
+        if (groupingName === 'FunctionType') return (p.fn || (p.groupings && p.groupings.FunctionType) || '').trim();
+        return (p.groupings && p.groupings[groupingName]) ? String(p.groupings[groupingName]).trim() : '';
+    };
+
+    // <5 distinct persons OR blank/N/A/Unassigned → "Other"
+    const personsPerGroup = {};
+    Object.entries(personIndex).forEach(([pid, p]) => {
+        const v = valueOf(p) || 'Unassigned';
+        if (!personsPerGroup[v]) personsPerGroup[v] = new Set();
+        personsPerGroup[v].add(pid);
+    });
+    const aggName = (raw) => {
+        const t = (raw || '').trim();
+        if (!t || t.toLowerCase() === 'n/a' || t.toLowerCase() === 'unassigned') return 'Other';
+        const c = personsPerGroup[t] ? personsPerGroup[t].size : 0;
+        return c < 5 ? 'Other' : t;
+    };
+    Object.values(personIndex).forEach(p => { p.orgAgg = aggName(valueOf(p)); });
+
+    // Rebuild org×week cells
+    const cells = {};
+    Object.values(personIndex).forEach(p => {
+        const g = p.orgAgg;
+        if (!cells[g]) cells[g] = {};
+        p.weeks.forEach(w => {
+            const c = cells[g][w.d] || (cells[g][w.d] = {
+                persons: 0, withActions: 0, actionsSum: 0, activeDaysSum: 0,
+                enabledDaysSum: 0, assistHrsSum: 0, intelRecapSum: 0, enabledPersons: 0
+            });
+            c.persons += 1;
+            if (w.a > 0) c.withActions += 1;
+            c.actionsSum += w.a; c.activeDaysSum += w.ad; c.enabledDaysSum += w.ed;
+            c.assistHrsSum += w.ah; c.intelRecapSum += w.ir;
+            if (w.ed > 0) c.enabledPersons += 1;
+        });
+    });
+
+    // Patch power counts per (group, week) using the person thresholds already computed
+    const powerCounts = {};
+    Object.values(personIndex).forEach(p => {
+        const g = p.orgAgg;
+        if (!powerCounts[g]) powerCounts[g] = {};
+        p.weeks.forEach(w => {
+            if (w.threshold === 'Power Users') powerCounts[g][w.d] = (powerCounts[g][w.d] || 0) + 1;
+        });
+    });
+
+    const weeklyData = {};
+    const rows = [];
+    const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    Object.entries(cells).forEach(([g, byDate]) => {
+        const weekly = sortedDates.map(d => {
+            const c = byDate[d];
+            if (!c) return null;
+            const enabled = c.enabledPersons || c.persons;
+            const activePercent = c.persons > 0 ? (c.withActions / c.persons) * 100 : 0;
+            const actionsPerUser = c.withActions > 0 ? c.actionsSum / c.withActions : 0;
+            const activeDays = c.persons > 0 ? c.activeDaysSum / c.persons : 0;
+            const powerCount = (powerCounts[g] && powerCounts[g][d]) || 0;
+            const powerPercent = c.persons > 0 ? (powerCount / c.persons) * 100 : 0;
+            return { date: parseDate(d), actionsPerUser, activePercent, powerPercent, activeDays, enabled };
+        }).filter(Boolean);
+        if (weekly.length === 0) return;
+        weeklyData[g] = weekly;
+        const last = weekly[weekly.length - 1];
+        const activePercent  = avg(weekly.map(w => w.activePercent).filter(v => v > 0));
+        const actionsPerUser = avg(weekly.map(w => w.actionsPerUser).filter(v => v > 0));
+        const avgActiveDays  = avg(weekly.map(w => w.activeDays).filter(v => v > 0));
+        const enabledUsers = last.enabled;
+        const activeUsers = Math.round((enabledUsers * activePercent) / 100);
+        const weeklyActions = actionsPerUser * activeUsers;
+        const recent = weekly.slice(-4);
+        const recentPowerPct = avg(recent.map(w => w.powerPercent).filter(v => v > 0));
+        const powerUsers = Math.round((enabledUsers * recentPowerPct) / 100);
+        rows.push({
+            team: g, enabledUsers, activeUsers, weeklyActions,
+            monthlyActions: weeklyActions * 4.33,
+            engagement: avgActiveDays, actionsPerUser, powerUsers
+        });
+    });
+
+    viva.rows = rows;
+    viva.weeklyData = weeklyData;
+    viva.groupLabel = groupingName;
+    viva.currentGrouping = groupingName;
+    return viva;
+}
+
+// Compute the 5 Usage Threshold cohorts for the window defined by dateSetForCohort,
+// using the threshold each person had at the LAST week of the window (Power BI "Latest Week" convention).
+// Action volume is summed across the window's weeks for monetary value.
+function computePersonCohortsFromIndex(personIndex, dateSetForCohort, sortedDatesInWindow) {
+    if (!personIndex || !sortedDatesInWindow || sortedDatesInWindow.length === 0) return null;
+    const lastWeek = sortedDatesInWindow[sortedDatesInWindow.length - 1];
+    const numWeeks = sortedDatesInWindow.length;
+    const rate = config.professionalRate;
+    const mpa = config.minutesPerAction;
+    const licenseCost = config.licenseCost;
+
+    const buckets = {
+        'Power Users':    { count: 0, actionsSum: 0, weeksActive: 0 },
+        'Habitual Users': { count: 0, actionsSum: 0, weeksActive: 0 },
+        'Novice Users':   { count: 0, actionsSum: 0, weeksActive: 0 },
+        'Low Users':      { count: 0, actionsSum: 0, weeksActive: 0 },
+        'Non Users':      { count: 0, actionsSum: 0, weeksActive: 0 }
+    };
+
+    Object.values(personIndex).forEach(p => {
+        // Find this person's threshold at the latest week of the window (or the latest week they appear in within the window).
+        const inWindow = p.weeks.filter(w => dateSetForCohort.has(w.d));
+        if (inWindow.length === 0) return;
+        const lastInWindow = inWindow.reduce((a, b) => a.d > b.d ? a : b);
+        const cohort = lastInWindow.threshold || 'Non Users';
+        const bucket = buckets[cohort];
+        if (!bucket) return;
+        bucket.count += 1;
+        bucket.actionsSum += inWindow.reduce((s, w) => s + w.a, 0);
+        bucket.weeksActive += inWindow.length;
+    });
+
+    // Convert to display rows
+    const rows = Object.entries(buckets).map(([name, b]) => {
+        const avgWeeksPerPerson = b.count > 0 ? b.weeksActive / b.count : 0;
+        // Monthly actions per user: avg weekly actions × 4.33
+        const avgWeeklyActions = b.count > 0 && avgWeeksPerPerson > 0
+            ? (b.actionsSum / b.count) / avgWeeksPerPerson
+            : 0;
+        const actionsPerMonth = avgWeeklyActions * 4.33;
+        const investment = b.count * licenseCost;
+        // Total monthly value = total monthly actions in cohort × time savings × rate
+        const totalWeeklyActionsAcrossCohort = avgWeeksPerPerson > 0 ? b.actionsSum / avgWeeksPerPerson : 0;
+        const totalMonthlyActions = totalWeeklyActionsAcrossCohort * 4.33;
+        const monthlyValue = (totalMonthlyActions * mpa / 60) * rate;
+        const roi = investment > 0 ? monthlyValue / investment : 0;
+        return { name, count: b.count, actionsPerMonth, investment, monthlyValue, roi };
+    });
+
+    const totalCount = rows.reduce((s, r) => s + r.count, 0);
+    const totalInvestment = rows.reduce((s, r) => s + r.investment, 0);
+    const totalValue = rows.reduce((s, r) => s + r.monthlyValue, 0);
+    const totalActionsWeighted = totalCount > 0
+        ? rows.reduce((s, r) => s + r.actionsPerMonth * r.count, 0) / totalCount
+        : 0;
+    const totalRoi = totalInvestment > 0 ? totalValue / totalInvestment : 0;
+
+    return {
+        rows,
+        totals: {
+            count: totalCount,
+            actionsPerMonth: totalActionsWeighted,
+            investment: totalInvestment,
+            monthlyValue: totalValue,
+            roi: totalRoi
+        },
+        windowLastWeek: lastWeek,
+        windowWeeks: numWeeks
+    };
+}
+
+// Recompute person cohorts for a specific time-period window (used by switchTimePeriod).
+// Returns the same shape as computePersonCohortsFromIndex, or null if no Viva data is loaded.
+function computeCohortsForPeriod(period) {
+    if (!uploadedData || !uploadedData.isVivaInsights || !uploadedData.personIndex) return null;
+    const allDates = uploadedData.sortedDates;
+    if (!allDates || allDates.length === 0) return null;
+
+    let dateSlice;
+    const total = allDates.length;
+    switch (period) {
+        case 'last4':   dateSlice = allDates.slice(-4); break;
+        case 'last13':  dateSlice = allDates.slice(-13); break;
+        case '3moAgo':  dateSlice = allDates.slice(0, Math.max(1, total - 13)); break;
+        case 'first4':  dateSlice = allDates.slice(0, 4); break;
+        case 'all':
+        default:        dateSlice = allDates; break;
+    }
+    return computePersonCohortsFromIndex(uploadedData.personIndex, new Set(dateSlice), dateSlice);
+}
+
+// Build the Usage Tier Distribution tbody HTML.
+//   cohorts != null  -> render real per-user cohorts (Power BI Usage Threshold parity).
+//   cohorts == null  -> fall back to legacy team-percentile slicing (with banner shown above).
+// Returns the inner HTML for <tbody id="tierTableBody">.
+function buildTierTableBodyHTML(cohorts, sortedTeams, metrics, licenseCost) {
+    if (cohorts && cohorts.rows && cohorts.rows.length > 0) {
+        // Color coding mirrors the Adoption Journey storyline
+        const colorByName = {
+            'Power Users':    'var(--green)',
+            'Habitual Users': 'var(--copilot-cyan)',
+            'Novice Users':   'var(--copilot-blue)',
+            'Low Users':      'var(--copilot-orange)',
+            'Non Users':      'var(--red)'
+        };
+        const tintByName = {
+            'Power Users':    'cohort-row cohort-row--power',
+            'Habitual Users': 'cohort-row cohort-row--habitual',
+            'Novice Users':   'cohort-row cohort-row--novice',
+            'Low Users':      'cohort-row cohort-row--low',
+            'Non Users':      'cohort-row cohort-row--non'
+        };
+        let html = '';
+        cohorts.rows.forEach(r => {
+            const color = colorByName[r.name] || 'var(--text-primary)';
+            const tintClass = tintByName[r.name] || 'cohort-row';
+            html += `<tr class="${tintClass}">
+                <td><span style="color:${color}; font-weight:700;">${r.name}</span></td>
+                <td>${r.count.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                <td>${r.actionsPerMonth.toFixed(0)}</td>
+                <td>$${r.investment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                <td>$${Math.round(r.monthlyValue).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                <td style="color: var(--green); font-weight: bold;">${r.roi.toFixed(1)}x</td>
+            </tr>`;
+        });
+        const t = cohorts.totals;
+        html += `<tr style="border-top: 2px solid var(--copilot-blue); font-weight: 700;">
+            <td>ALL USERS</td>
+            <td>${t.count.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            <td>${t.actionsPerMonth.toFixed(0)}</td>
+            <td>$${t.investment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            <td>$${Math.round(t.monthlyValue).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            <td style="color: var(--green);">${t.roi.toFixed(1)}x</td>
+        </tr>`;
+        return html;
+    }
+
+    // ---- Legacy team-percentile fallback (aggregated CSV inputs) ----
+    const byActions = [...sortedTeams].sort((a, b) => b.actionsPerUser - a.actionsPerUser);
+    const totalTeams = byActions.length;
+    const tierDefs = [
+        { name: 'Top 10%',    color: 'var(--green)',          cls: 'cohort-row--power',    start: 0,                                                  end: Math.max(1, Math.round(totalTeams * 0.10)) },
+        { name: '75-90%',     color: 'var(--copilot-cyan)',   cls: 'cohort-row--habitual', start: Math.max(1, Math.round(totalTeams * 0.10)),         end: Math.round(totalTeams * 0.25) },
+        { name: '50-75%',     color: 'var(--copilot-blue)',   cls: 'cohort-row--novice',   start: Math.round(totalTeams * 0.25),                      end: Math.round(totalTeams * 0.50) },
+        { name: '25-50%',     color: 'var(--copilot-orange)', cls: 'cohort-row--low',      start: Math.round(totalTeams * 0.50),                      end: Math.round(totalTeams * 0.75) },
+        { name: 'Bottom 25%', color: 'var(--red)',            cls: 'cohort-row--non',      start: Math.round(totalTeams * 0.75),                      end: totalTeams },
+    ];
+    let totalActiveInTiers = 0;
+    let totalValueInTiers = 0;
+    let html = '';
+    tierDefs.forEach(tier => {
+        const slice = byActions.slice(tier.start, tier.end);
+        if (slice.length === 0) return;
+        const tierUsers = slice.reduce((s, t) => s + t.activeUsers, 0);
+        const tierWeekly = slice.reduce((s, t) => s + t.weeklyActions, 0);
+        const tierAvgWeekly = tierUsers > 0 ? tierWeekly / tierUsers : 0;
+        const tierMonthly = tierAvgWeekly * 4.33;
+        const tierMonthlyVal = slice.reduce((s, t) => s + (t.monthlyValue || 0), 0);
+        const tierInvestment = tierUsers * licenseCost;
+        const tierRoi = tierInvestment > 0 ? (tierMonthlyVal / tierInvestment) : 0;
+        totalActiveInTiers += tierUsers;
+        totalValueInTiers += tierMonthlyVal;
+        html += `<tr class="cohort-row ${tier.cls}">
+            <td><span style="color:${tier.color}; font-weight:700;">${tier.name}</span></td>
+            <td>${tierUsers.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            <td>${tierMonthly.toFixed(0)}</td>
+            <td>$${tierInvestment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            <td>$${Math.round(tierMonthlyVal).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+            <td style="color: var(--green); font-weight: bold;">${tierRoi.toFixed(1)}x</td>
+        </tr>`;
+    });
+    const totalTierInvestment = totalActiveInTiers * licenseCost;
+    const allRoi = totalTierInvestment > 0 ? (totalValueInTiers / totalTierInvestment) : 0;
+    html += `<tr style="border-top: 2px solid var(--copilot-blue); font-weight: 700;">
+        <td>ALL USERS</td>
+        <td>${totalActiveInTiers.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+        <td>${totalActiveInTiers > 0 ? (sortedTeams.reduce((s, t) => s + t.monthlyActions, 0) / totalActiveInTiers).toFixed(0) : '0'}</td>
+        <td>$${totalTierInvestment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+        <td>$${Math.round(totalValueInTiers).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+        <td style="color: var(--green);">${allRoi.toFixed(1)}x</td>
+    </tr>`;
+    return html;
+}
+
+// Warning banner shown above the tier table when input is an aggregated CSV (not per-person Viva).
+function buildTierAccuracyBanner(uploadedData) {
+    if (uploadedData && uploadedData.isVivaInsights) return ''; // real cohorts available — no banner needed
+    return `<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--copilot-orange, #F59E0B); border-radius: 8px; padding: 0.75rem 1rem; margin: 0 0 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+        <strong style="color: var(--warn);">Approximate cohorts</strong> &mdash;
+        your upload is aggregated by ${uploadedData && uploadedData.groupLabel ? uploadedData.groupLabel.toLowerCase() : 'group'},
+        so we cannot identify individual users. Tiers below are computed by grouping
+        ${uploadedData && uploadedData.groupLabel ? uploadedData.groupLabel.toLowerCase() : 'groups'} by their average
+        actions per user, not by user-level percentiles. For exact per-user cohorts
+        (Power / Habitual / Novice / Low / Non-users matching the
+        <a href="https://aka.ms/superuserimpact" target="_blank" style="color: var(--copilot-cyan);">Super User Impact</a> report),
+        upload a Viva Insights person-level export instead.
+    </div>`;
 }
 
 // Parse a single CSV line (handles commas in quotes)
@@ -968,8 +1858,9 @@ function switchTimePeriod(period) {
     const teams = computeTeamsForPeriod(period);
     if (!teams) return;
 
-    // Update active button state
-    document.querySelectorAll('.time-toggle-btn').forEach(btn => {
+    // Update active button state. Scoped to [data-period] — the minutes-per-action
+    // presets share .time-toggle-btn and must keep their own selected state.
+    document.querySelectorAll('.time-toggle-btn[data-period]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.period === period);
     });
 
@@ -978,50 +1869,10 @@ function switchTimePeriod(period) {
     const licenseCost = config.licenseCost;
 
     // --- Rebuild tier table body ---
-    const byActions = [...teams].sort((a, b) => b.actionsPerUser - a.actionsPerUser);
-    const totalTeams = byActions.length;
-    const tierDefs = [
-        { name: 'Top 10%',    color: 'var(--green)',          start: 0,                                    end: Math.max(1, Math.round(totalTeams * 0.10)) },
-        { name: '75-90%',     color: 'var(--copilot-cyan)',   start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25) },
-        { name: '50-75%',     color: 'var(--copilot-blue)',   start: Math.round(totalTeams * 0.25),        end: Math.round(totalTeams * 0.50) },
-        { name: '25-50%',     color: 'var(--copilot-orange)', start: Math.round(totalTeams * 0.50),        end: Math.round(totalTeams * 0.75) },
-        { name: 'Bottom 25%', color: 'var(--red)',            start: Math.round(totalTeams * 0.75),        end: totalTeams },
-    ];
-
-    let tierRows = '';
-    let totalActiveInTiers = 0;
-    let totalValueInTiers = 0;
-    tierDefs.forEach(tier => {
-        const slice = byActions.slice(tier.start, tier.end);
-        if (slice.length === 0) return;
-        const tierUsers = slice.reduce((s, t) => s + t.activeUsers, 0);
-        const tierWeekly = slice.reduce((s, t) => s + t.weeklyActions, 0);
-        const tierAvgWeekly = tierUsers > 0 ? tierWeekly / tierUsers : 0;
-        const tierMonthly = tierAvgWeekly * 4.33;
-        const tierMonthlyVal = slice.reduce((s, t) => s + t.monthlyValue, 0);
-        const tierInvestment = tierUsers * licenseCost;
-        const tierRoi = tierInvestment > 0 ? (tierMonthlyVal / tierInvestment).toFixed(1) : '0.0';
-        totalActiveInTiers += tierUsers;
-        totalValueInTiers += tierMonthlyVal;
-        tierRows += `<tr>
-            <td><span style="color:${tier.color}; font-weight:700;">${tier.name}</span></td>
-            <td>${tierUsers.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-            <td>${tierMonthly.toFixed(0)}</td>
-            <td>$${tierInvestment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-            <td>$${tierMonthlyVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-            <td style="color: var(--green); font-weight: bold;">${tierRoi}x</td>
-        </tr>`;
-    });
-    const totalTierInvestment = totalActiveInTiers * licenseCost;
-    const allRoi = totalTierInvestment > 0 ? (totalValueInTiers / totalTierInvestment).toFixed(1) : '0.0';
-    tierRows += `<tr style="border-top: 2px solid var(--copilot-blue); font-weight: 700;">
-        <td>ALL USERS</td>
-        <td>${totalActiveInTiers.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-        <td>${totalActiveInTiers > 0 ? (teams.reduce((s,t) => s + t.monthlyActions, 0) / totalActiveInTiers).toFixed(0) : '0'}</td>
-        <td>$${totalTierInvestment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-        <td>$${totalValueInTiers.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-        <td style="color: var(--green);">${allRoi}x</td>
-    </tr>`;
+    // Use real per-user cohorts (Power BI Usage Threshold parity) when Viva data is loaded,
+    // otherwise the helper falls back to legacy team-percentile slicing.
+    const periodCohorts = computeCohortsForPeriod(period);
+    const tierRows = buildTierTableBodyHTML(periodCohorts, teams, null, licenseCost);
 
     const tierBody = document.getElementById('tierTableBody');
     if (tierBody) tierBody.innerHTML = tierRows;
@@ -1212,58 +2063,24 @@ function buildProjectionTables(metrics, sortedTeams) {
         `);
 
     // ---- USAGE TIER DISTRIBUTION ----
-    // Sort teams by actions per user, split into super user report tiers
-    const byActions = [...sortedTeams].sort((a, b) => b.actionsPerUser - a.actionsPerUser);
-    const totalTeams = byActions.length;
-    // Tier boundaries: Top 10%, 75-90%, 50-75%, 25-50%, Bottom 25%
-    const tierDefs = [
-        { name: 'Top 10%',    color: 'var(--green)',          start: 0,                                    end: Math.max(1, Math.round(totalTeams * 0.10)) },
-        { name: '75-90%',     color: 'var(--copilot-cyan)',   start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25) },
-        { name: '50-75%',     color: 'var(--copilot-blue)',   start: Math.round(totalTeams * 0.25),        end: Math.round(totalTeams * 0.50) },
-        { name: '25-50%',     color: 'var(--copilot-orange)', start: Math.round(totalTeams * 0.50),        end: Math.round(totalTeams * 0.75) },
-        { name: 'Bottom 25%', color: 'var(--red)',            start: Math.round(totalTeams * 0.75),        end: totalTeams },
-    ];
-
-    let tierRows = '';
-    tierDefs.forEach(tier => {
-        const slice = byActions.slice(tier.start, tier.end);
-        if (slice.length === 0) return;
-
-        const tierUsers = slice.reduce((s, t) => s + t.activeUsers, 0);
-        const tierWeekly = slice.reduce((s, t) => s + t.weeklyActions, 0);
-        const tierAvgWeekly = tierUsers > 0 ? tierWeekly / tierUsers : 0;
-        const tierMonthly = tierAvgWeekly * 4.33;
-        const tierMonthlyVal = slice.reduce((s, t) => s + t.monthlyValue, 0);
-        const tierInvestment = tierUsers * licenseCost;
-        const tierRoi = tierInvestment > 0 ? (tierMonthlyVal / tierInvestment).toFixed(1) : '0.0';
-
-        tierRows += `<tr>
-            <td><span style="color:${tier.color}; font-weight:700;">${tier.name}</span></td>
-            <td>${tierUsers.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-            <td>${tierMonthly.toFixed(0)}</td>
-            <td>$${tierInvestment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-            <td>$${tierMonthlyVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-            <td style="color: var(--green); font-weight: bold;">${tierRoi}x</td>
-        </tr>`;
-    });
-
-    // Totals row — investment is based on all licensed users (you pay for every license)
-    const totalTierInvestment = totalUsers * licenseCost;
-    tierRows += `<tr style="border-top: 2px solid var(--copilot-blue); font-weight: 700;">
-        <td>ALL USERS</td>
-        <td>${activeUsers.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-        <td>${avgMonthly.toFixed(0)}</td>
-        <td>$${totalTierInvestment.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-        <td>$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-        <td style="color: var(--green);">${metrics.roiMultiple.toFixed(1)}x</td>
-    </tr>`;
+    // If Viva Insights per-person data is loaded, render real Usage Threshold cohorts.
+    // Otherwise fall back to legacy team-percentile slicing (with an accuracy banner).
+    const tierCohorts = uploadedData.isVivaInsights ? (uploadedData.personCohorts || computeCohortsForPeriod('all')) : null;
+    const tierRows = buildTierTableBodyHTML(tierCohorts, sortedTeams, metrics, licenseCost);
+    const tierBanner = buildTierAccuracyBanner(uploadedData);
+    const tierColumnLabel = tierCohorts ? 'User Cohort' : 'User Tier';
+    const tierColumnTip = tierCohorts
+        ? 'Per-user Usage Threshold cohorts. Power Users = avg ≥20 actions/wk with active in ≥9 of last 12 weeks. Habitual = ≥8 + habit. Novice = ≥1. Low = >0. Non-users = 0. Matches the Super User Adoption report (Usage Threshold column).'
+        : 'Teams ranked by actions per user and grouped into percentile bands. Top 10% are your champions; Bottom 25% your biggest growth opportunity. Note: not true per-user tiers — upload a Viva Insights per-person export for those.';
 
     const tierHtml = section('Usage Tier Value Distribution', `
         <div class="roi-table-container" style="box-shadow:none;border:none;padding:0;margin:0;">
+            ${tierBanner}
             <p style="text-align:center; margin-bottom:1rem; color: var(--text-secondary);">
-                ${uploadedData.groupLabel || 'Teams'} segmented into performance tiers by Copilot actions per user.
-                Investment at $${licenseCost}/user/month.<br>
-                <a href="https://jordankingisalive.github.io/CopilotROICalculator/Start%20Here.html" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none;">🚀 Explore the Adoption Journey to move users up tiers →</a>
+                ${tierCohorts
+                    ? `Real per-user Usage Threshold cohorts based on ${Object.keys(uploadedData.personIndex).length.toLocaleString()} distinct users. Investment at $${licenseCost}/user/month.`
+                    : `${uploadedData.groupLabel || 'Teams'} segmented into performance tiers by Copilot actions per user. Investment at $${licenseCost}/user/month.`}<br>
+                <a href="https://jordankingisalive.github.io/CopilotROICalculator/Start%20Here.html" target="_blank" style="color: var(--accent); font-weight: 500; text-decoration: none;">Explore the Adoption Journey to move users up tiers &rarr;</a>
             </p>
             ${uploadedData.sortedDates && uploadedData.sortedDates.length > 4 ? `<div class="time-toggle-bar" style="display:flex; justify-content:center; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
                 <button class="time-toggle-btn active" data-period="all" onclick="switchTimePeriod('all')">Entire Period</button>
@@ -1275,7 +2092,7 @@ function buildProjectionTables(metrics, sortedTeams) {
             <p id="tierPeriodLabel" style="text-align:center; margin-bottom:0.5rem; color: var(--copilot-cyan); font-weight:600; font-size:0.9rem;">Entire Period</p>` : ''}
             <table>
                 <thead>
-                    <tr><th>User Tier ${tip('Users ranked by actions per user and grouped into percentile bands. Top 10% are your champions who can mentor others; Bottom 25% are your biggest growth opportunity.')}</th><th>Active Users<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">avg/week</span></th><th>Actions/Month<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">avg/user</span> ${tip('Average monthly Copilot actions per user in this tier.')}</th><th>Monthly Investment<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">total</span> ${tip('Number of active users in this tier × license cost per month.')}</th><th>Monthly Value<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">projected</span> ${tip('Productivity value generated by this tier based on their actions and the configured time savings.')}</th><th>ROI<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">value÷cost</span> ${tip('Monthly value ÷ monthly investment for this tier. Shows which user segments generate the most return.')}</th></tr>
+                    <tr><th>${tierColumnLabel} ${tip(tierColumnTip)}</th><th>${tierCohorts ? 'Users' : 'Active Users'}<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">${tierCohorts ? 'count' : 'avg/week'}</span></th><th>Actions/Month<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">avg/user</span> ${tip('Average monthly Copilot actions per user in this cohort.')}</th><th>Monthly Investment<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">total</span> ${tip('Number of users in this cohort × license cost per month.')}</th><th>Monthly Value<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">projected</span> ${tip('Productivity value generated by this cohort based on their actions and the configured time savings.')}</th><th>ROI<br><span style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;">value÷cost</span> ${tip('Monthly value ÷ monthly investment for this cohort. Shows which user segments generate the most return.')}</th></tr>
                 </thead>
                 <tbody id="tierTableBody">${tierRows}</tbody>
             </table>
@@ -1397,12 +2214,12 @@ function buildProjectionTables(metrics, sortedTeams) {
                     <div class="metric-sublabel" id="opp-value-math"></div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Net Gain / Mo ${tip('Potential value minus licensing cost. Green means the productivity gained exceeds the cost of licenses.')}</span></div>
+                    <div class="metric-label"><span class="metric-label-row"><span id="opp-net-label">Net Gain / Mo</span> ${tip('Potential value minus licensing cost. Green means the productivity gained exceeds the cost of licenses.')}</span></div>
                     <div class="metric-value" id="opp-net-gain">—</div>
                     <div class="metric-sublabel" id="opp-net-math"></div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-label"><span class="metric-label-row">Annual Opportunity ${tip('Net monthly gain × 12. This is the additional value your organization could unlock each year by bringing these users onto Copilot.')}</span></div>
+                    <div class="metric-label"><span class="metric-label-row"><span id="opp-annual-label">Annual Opportunity</span> ${tip('Net monthly gain × 12. This is the additional value your organization could unlock each year by bringing these users onto Copilot.')}</span></div>
                     <div class="metric-value" id="opp-annual">—</div>
                     <div class="metric-sublabel" id="opp-annual-math"></div>
                 </div>
@@ -1457,9 +2274,11 @@ function updateOppCost() {
         document.getElementById('opp-value-label').textContent = 'Potential Value / Mo';
         document.getElementById('opp-potential-value').textContent = '$' + fmt(potentialValue);
         document.getElementById('opp-value-math').textContent = fmt(count) + ' × $' + fmt(Math.round(p.valuePerUser)) + '/user/mo';
+        document.getElementById('opp-net-label').textContent = 'Net Gain / Mo';
         document.getElementById('opp-net-gain').textContent = '$' + fmt(netGain);
         document.getElementById('opp-net-gain').style.color = netGain >= 0 ? 'var(--green)' : 'var(--red)';
         document.getElementById('opp-net-math').textContent = '$' + fmt(potentialValue) + ' − $' + fmt(licensingCost);
+        document.getElementById('opp-annual-label').textContent = 'Annual Opportunity';
         document.getElementById('opp-annual').textContent = '$' + fmt(annual);
         document.getElementById('opp-annual').style.color = annual >= 0 ? 'var(--green)' : 'var(--red)';
         document.getElementById('opp-annual-math').textContent = '$' + fmt(netGain) + ' × 12 months';
@@ -1467,12 +2286,14 @@ function updateOppCost() {
         document.getElementById('opp-value-label').textContent = 'Total Actions / Mo';
         document.getElementById('opp-potential-value').textContent = fmt(totalActions);
         document.getElementById('opp-value-math').textContent = fmt(count) + ' × ' + fmt(Math.round(p.actionsPerUser)) + ' actions/user';
-        document.getElementById('opp-net-gain').textContent = fmt(Math.round(p.actionsPerUser)) + '/user';
+        document.getElementById('opp-net-label').textContent = 'Actions / User / Mo';
+        document.getElementById('opp-net-gain').textContent = fmt(Math.round(p.actionsPerUser)) + ' actions';
         document.getElementById('opp-net-gain').style.color = '';
-        document.getElementById('opp-net-math').textContent = '10% of ' + fmt(Math.round(p.avgMonthly)) + ' avg actions';
-        document.getElementById('opp-annual').textContent = fmt(totalActions * 12) + '/yr';
+        document.getElementById('opp-net-math').textContent = '10% of ' + fmt(Math.round(p.avgMonthly)) + ' avg actions/user';
+        document.getElementById('opp-annual-label').textContent = 'Annual Actions';
+        document.getElementById('opp-annual').textContent = fmt(totalActions * 12) + ' actions';
         document.getElementById('opp-annual').style.color = '';
-        document.getElementById('opp-annual-math').textContent = fmt(totalActions) + ' × 12 months';
+        document.getElementById('opp-annual-math').textContent = fmt(totalActions) + ' actions/mo × 12 months';
     }
 }
 
@@ -1499,21 +2320,18 @@ function buildMpaToggleButtons() {
         const isActive = config.minutesPerAction === val && !isCustom;
         const isDefault = val === originalMinutesPerAction;
         const label = `${val} min` + (isDefault ? ' (your default)' : '');
-        const activeStyle = isActive
-            ? 'background: linear-gradient(135deg, #4A9EF7, #A855F7); color: #fff; border-color: transparent; font-weight: 700;'
-            : 'background: var(--surface, #1E293B); color: var(--text-secondary); border-color: var(--border, rgba(255,255,255,0.08));';
-        return `<button onclick="switchMinutesPerAction(${val})" style="padding:0.5rem 1.25rem; border-radius:8px; border:1px solid; cursor:pointer; font-size:0.9rem; font-family:inherit; transition:all 0.2s; ${activeStyle}">${label}</button>`;
+        return `<button class="time-toggle-btn mpa-preset-btn${isActive ? ' active' : ''}" data-mpa="${val}" aria-pressed="${isActive}" onclick="switchMinutesPerAction(${val})">${label}</button>`;
     }).join('');
 
     const customActiveStyle = isCustom
-        ? 'border-color: var(--copilot-blue); background: rgba(74,158,247,0.15); color: var(--copilot-cyan); font-weight: 700;'
-        : 'border-color: var(--border, rgba(255,255,255,0.08)); background: var(--surface, #1E293B); color: var(--text-secondary);';
+        ? 'border-color: var(--accent-line); background: var(--accent-soft); color: var(--text-primary);'
+        : 'border-color: var(--rule); background: transparent; color: var(--text-secondary);';
 
-    const customBox = `<span style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.35rem 0.75rem; border-radius:8px; border:1px solid; font-size:0.9rem; ${customActiveStyle}">
+    const customBox = `<span style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.25rem 0.5rem; border-radius:6px; border:1px solid; font-size:0.8125rem; ${customActiveStyle}">
         <input type="number" id="mpaCustomInput" min="1" max="30" step="0.5" value="${isCustom ? config.minutesPerAction : ''}" placeholder="—"
-            style="width:3rem; padding:0.2rem 0.3rem; border-radius:4px; border:1px solid var(--border, rgba(255,255,255,0.08)); background:var(--surface-raised, #253449); color:var(--text-primary, #F1F5F9); font-size:0.9rem; font-family:inherit; text-align:center;"
+            style="width:3rem; padding:0.2rem 0.3rem; border-radius:4px; border:1px solid var(--rule); background:var(--ink-700); color:var(--text-primary); font-size:0.8125rem; font-family:var(--font-mono); text-align:center;"
             onkeydown="if(event.key==='Enter'){applyCustomMpa();}"
-        > min <button onclick="applyCustomMpa()" style="padding:0.2rem 0.6rem; border-radius:6px; border:1px solid var(--copilot-blue); background:var(--copilot-blue); color:#fff; font-size:0.75rem; font-weight:600; cursor:pointer; font-family:inherit;">Go</button>
+        > min <button onclick="applyCustomMpa()" style="padding:0.2rem 0.6rem; border-radius:4px; border:1px solid var(--accent); background:var(--accent); color:#fff; font-size:0.75rem; font-weight:600; cursor:pointer; font-family:inherit;">Go</button>
     </span>`;
 
     return buttons + customBox;
@@ -1546,12 +2364,9 @@ function switchReportTab(tabId) {
         target.style.display = 'block';
         target.style.animation = 'fadeIn 0.3s ease';
     }
-    // Update tab button styles
+    // Update tab button styles (the .active class drives all styling in styles.css)
     document.querySelectorAll('.report-tab').forEach(btn => {
         const isActive = btn.dataset.tab === tabId;
-        btn.style.borderBottomColor = isActive ? 'var(--copilot-blue)' : 'transparent';
-        btn.style.background = isActive ? 'var(--surface-raised, #253449)' : 'var(--surface, #1E293B)';
-        btn.style.color = isActive ? 'var(--text-primary, #F1F5F9)' : 'var(--text-secondary, #94A3B8)';
         btn.classList.toggle('active', isActive);
     });
 }
@@ -1658,29 +2473,26 @@ function renderResults() {
         <div class="results-container">
             ${isDemoData ? `
             <!-- DEMO DATA WARNING BANNER -->
-            <div style="background: linear-gradient(135deg, #F59E0B, #EF4444); border: 3px solid #DC2626; border-radius: 12px; padding: 1.5rem; margin: 0 0 1.5rem; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4);">
-                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                    <span style="font-size: 2.5rem;">⚠️</span>
-                    <div>
-                        <h2 style="margin: 0; font-size: 1.4rem; color: #FFFFFF; font-weight: 800;">DEMO DATA ACTIVE</h2>
-                        <p style="margin: 0.25rem 0 0; font-size: 0.95rem; color: #FEF3C7; font-weight: 600;">You are viewing example data from a demonstration dataset</p>
-                    </div>
+            <div style="background: var(--ink-700); border: 1px solid var(--rule); border-left: 2px solid var(--negative); border-radius: 10px; padding: 1.5rem; margin: 0 0 1.5rem;">
+                <div style="margin-bottom: 1rem;">
+                    <h2 style="margin: 0; font-size: 1.125rem; color: var(--negative);">DEMO DATA ACTIVE</h2>
+                    <p style="margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--text-secondary);">You are viewing example data from a demonstration dataset</p>
                 </div>
-                <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
-                    <p style="margin: 0 0 0.75rem; font-size: 0.95rem; color: #FFFFFF; font-weight: 600;">⛔ DO NOT use this data for:</p>
-                    <ul style="margin: 0; padding-left: 1.5rem; color: #FEF3C7; font-size: 0.9rem; line-height: 1.6;">
+                <div style="background: var(--ink-800); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+                    <p style="margin: 0 0 0.75rem; font-size: 0.875rem; color: var(--text-primary); font-weight: 600;">DO NOT use this data for:</p>
+                    <ul style="margin: 0; padding-left: 1.25rem; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.65;">
                         <li>Customer presentations or stakeholder briefings</li>
                         <li>Business decisions or ROI justifications</li>
                         <li>Sharing outside your organization</li>
                     </ul>
-                    <p style="margin: 1rem 0 0; font-size: 0.95rem; color: #FFFFFF; font-weight: 600;">✅ To generate a report with YOUR data: Return to the home screen to upload your organization's Copilot usage CSV file</p>
+                    <p style="margin: 1rem 0 0; font-size: 0.875rem; color: var(--text-secondary);">To generate a report with YOUR data: Return to the home screen to upload your organization's Copilot usage CSV file</p>
                 </div>
             </div>
             ` : ''}
             <header>
                 <h1>M365 Copilot Productivity ROI Analysis Results</h1>
-                <p class="subtitle">Based on ${rows.length} ${uploadedData.groupLabel || 'teams'} • ${config.analysisWeeks} weeks of data${uploadedData.dateRange ? ` (${uploadedData.dateRange})` : ''}</p>
-                <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--copilot-cyan); font-weight: 600; text-decoration: none; font-size: 0.95rem;">📊 View more reports on the Analytics Hub →</a></p>
+                <p class="subtitle">Based on ${formatGroupCount(rows.length, uploadedData.groupLabel)} • ${config.analysisWeeks} weeks of data${uploadedData.dateRange ? ` (${uploadedData.dateRange})` : ''}</p>
+                <p style="margin-top: 0.5rem;"><a href="https://aka.ms/Analytics-Hub" target="_blank" style="color: var(--accent); font-weight: 500; text-decoration: none; font-size: 0.875rem;">View more reports on the Analytics Hub &rarr;</a></p>
             </header>
 
             <!-- Minutes per Action Toggle -->
@@ -1690,42 +2502,42 @@ function renderResults() {
             </div>
 
             <!-- TAB BAR -->
-            <div class="report-tabs" style="display:flex; gap:0; margin:1.5rem 0 0; border-bottom:3px solid var(--border, rgba(255,255,255,0.08));">
-                <button class="report-tab active" data-tab="summary" onclick="switchReportTab('summary')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid var(--copilot-blue); background:var(--surface-raised, #253449); color:var(--text-primary, #F1F5F9); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">📊 Executive Summary</button>
-                <button class="report-tab" data-tab="teams" onclick="switchReportTab('teams')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid transparent; background:var(--surface, #1E293B); color:var(--text-secondary, #94A3B8); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">👥 Team Performance</button>
-                <button class="report-tab" data-tab="roi" onclick="switchReportTab('roi')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid transparent; background:var(--surface, #1E293B); color:var(--text-secondary, #94A3B8); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">💰 ROI Analysis</button>
-                <button class="report-tab" data-tab="reference" onclick="switchReportTab('reference')" style="flex:1; padding:1.25rem 1rem; font-size:1.15rem; font-weight:700; font-family:inherit; border:none; border-bottom:4px solid transparent; background:var(--surface, #1E293B); color:var(--text-secondary, #94A3B8); cursor:pointer; border-radius:12px 12px 0 0; transition:all 0.2s;">📖 Reference</button>
+            <div class="report-tabs">
+                <button class="report-tab active" data-tab="summary"   onclick="switchReportTab('summary')">Executive Summary</button>
+                <button class="report-tab"        data-tab="orgs"      onclick="switchReportTab('orgs')">Organizations</button>
+                <button class="report-tab"        data-tab="roi"       onclick="switchReportTab('roi')">ROI &amp; Forecast</button>
+                <button class="report-tab"        data-tab="reference" onclick="switchReportTab('reference')">Reference</button>
             </div>
 
             <!-- TAB: Executive Summary -->
             <div class="report-tab-content" id="tab-summary" style="display:block; animation: fadeIn 0.3s ease;">
 
             <!-- Executive Summary -->
-            <div style="background: linear-gradient(135deg, rgba(74,158,247,0.08), rgba(0,212,255,0.08)); border: 1px solid rgba(74,158,247,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0 1.5rem; text-align: center;">
-                <p style="font-size: 1.05rem; color: var(--text-primary); margin: 0; line-height: 1.6;">
-                    Your <strong style="color: var(--copilot-cyan);">${metrics.totalEnabledUsers.toLocaleString()}</strong> Copilot licenses generate
-                    <strong style="color: var(--green);">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/month</strong> in productivity value —
-                    a <strong style="color: var(--green);">${metrics.roiMultiple.toFixed(1)}x return</strong> on investment at
-                    <strong style="color: var(--copilot-cyan);">${metrics.activationRate.toFixed(0)}% adoption</strong>${trendSummary}.
+            <div style="background: var(--ink-700); border: 1px solid var(--rule); border-left: 2px solid var(--accent); border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1.5rem 0 1.5rem;">
+                <p style="font-size: 1rem; color: var(--text-secondary); margin: 0; line-height: 1.65;">
+                    Your <strong>${metrics.totalEnabledUsers.toLocaleString()}</strong> Copilot licenses generate
+                    <strong class="is-value">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/month</strong> in productivity value &mdash;
+                    a <strong>${metrics.roiMultiple.toFixed(1)}x return</strong> on investment at
+                    <strong>${metrics.activationRate.toFixed(0)}% adoption</strong>${trendSummary}.
                 </p>
             </div>
 
             ${showRecap ? `
             <!-- Intelligent Recap Toggle -->
-            <div class="recap-toggle-container" id="recapToggleContainer" style="display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 1rem; background: var(--surface, #1E293B); border-radius: 8px; margin: 1.5rem 0; border: 2px solid var(--copilot-blue);">
-                <span class="recap-toggle-label" style="font-weight: 600; color: var(--text-primary, #F1F5F9); font-size: 1rem;">Include Intelligent Recap in ROI:</span>
-                <label class="toggle-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                    <input type="checkbox" id="recapToggleData" checked onchange="toggleRecapDisplayData()" style="opacity: 0; width: 0; height: 0;">
-                    <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--copilot-blue); transition: 0.4s; border-radius: 30px;"></span>
+            <div class="recap-toggle-container" id="recapToggleContainer">
+                <span class="recap-toggle-label">Include Intelligent Recap in ROI:</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="recapToggleData" checked onchange="toggleRecapDisplayData()">
+                    <span class="toggle-slider"></span>
                 </label>
-                <span class="recap-toggle-label" id="recapToggleStatusData" style="font-weight: 600; color: var(--copilot-cyan); font-size: 1rem;">Included</span>
+                <span class="recap-toggle-label" id="recapToggleStatusData">Included</span>
             </div>
 
             <!-- Intelligent Recap Value Display -->
-            <div class="recap-value-box" id="recapValueBoxData" style="background: var(--surface-raised, #253449); border: 2px solid var(--copilot-cyan); border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center;">
-                <h4 style="color: var(--copilot-cyan); margin-bottom: 0.5rem; font-size: 0.95rem;">💡 Intelligent Recap Additional Value</h4>
-                <div class="value" style="font-size: 2rem; font-weight: bold; color: var(--text-primary, #F1F5F9);">$${recapMonthlyValue.toLocaleString(undefined, {maximumFractionDigits: 2})}/mo</div>
-                <small style="color: var(--text-secondary, #94A3B8);">${config.intelligentRecapActions.toLocaleString(undefined, {maximumFractionDigits: 2})} actions × 0.5 hours each = ${recapHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 2})} hours/mo</small>
+            <div class="recap-value-box" id="recapValueBoxData">
+                <h4>Intelligent Recap Additional Value</h4>
+                <div class="value">$${recapMonthlyValue.toLocaleString(undefined, {maximumFractionDigits: 2})}/mo</div>
+                <small style="color: var(--text-tertiary);">${config.intelligentRecapActions.toLocaleString(undefined, {maximumFractionDigits: 2})} actions × 0.5 hours each = ${recapHoursSaved.toLocaleString(undefined, {maximumFractionDigits: 2})} hours/mo</small>
             </div>
             ` : ''}
 
@@ -1739,14 +2551,14 @@ function renderResults() {
             </div>` : ''}
             <!-- Hero Metrics Row -->
             <div class="metrics-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 1.5rem;">
-                <div class="metric-card" style="border: 2px solid var(--green); background: linear-gradient(135deg, rgba(34,197,94,0.05), rgba(34,197,94,0.02));">
+                <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Monthly ROI Multiple ${tip('Monthly productivity value ÷ monthly license cost. A 3x ROI means every $1 spent on licenses generates $3 in productivity value.')}</span></div>
-                    <div class="metric-value" id="km-roi" style="font-size: 3rem; color: var(--green);">${metrics.roiMultiple.toFixed(1)}x</div>
+                    <div class="metric-value" id="km-roi">${metrics.roiMultiple.toFixed(1)}x</div>
                     <div class="metric-sublabel" id="km-roiSub">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo value ÷ $${metrics.monthlyCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo cost</div>
                 </div>
-                <div class="metric-card" style="border: 2px solid var(--copilot-cyan); background: linear-gradient(135deg, rgba(0,212,255,0.05), rgba(0,212,255,0.02));">
+                <div class="metric-card">
                     <div class="metric-label"><span class="metric-label-row">Monthly Productivity Value ${tip('The total dollar value Copilot generates each month. Calculated as: total monthly actions × minutes per action ÷ 60 × hourly rate.')}</span></div>
-                    <div class="metric-value" id="km-monthlyValue" style="font-size: 3rem; color: var(--copilot-cyan);">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                    <div class="metric-value is-value" id="km-monthlyValue">$${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
                     <div class="metric-sublabel" id="km-monthlyValueSub">$${(metrics.valuePerMonth * 12).toLocaleString(undefined, {maximumFractionDigits: 0})}/year • $${(metrics.valuePerMonth / 4.33).toLocaleString(undefined, {maximumFractionDigits: 0})}/week</div>
                 </div>
             </div>
@@ -1797,7 +2609,7 @@ function renderResults() {
             <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: var(--surface-raised, #253449); border-radius: 10px; border-left: 3px solid var(--copilot-blue);">
                 <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;">
                     <strong style="color: var(--text-primary);">Total Investment:</strong> $${metrics.monthlyCostPurchased.toLocaleString(undefined, {maximumFractionDigits: 0})}/month ($${metrics.annualCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/year) for ${metrics.totalPurchasedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} purchased licenses at $${config.licenseCost}/user/month
-                    ${metrics.unassignedLicenses > 0 ? `<br><strong style="color: var(--copilot-orange);">💡 Quick Win:</strong> ${metrics.unassignedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} licenses available to assign — $${metrics.wastedLicenseCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo in untapped potential` : ''}<br>
+                    ${metrics.unassignedLicenses > 0 ? `<br><strong style="color: var(--warn);">Quick Win:</strong> ${metrics.unassignedLicenses.toLocaleString(undefined, {maximumFractionDigits: 0})} licenses available to assign — $${metrics.wastedLicenseCost.toLocaleString(undefined, {maximumFractionDigits: 0})}/mo in untapped potential` : ''}<br>
                     <strong style="color: var(--text-primary);">Productivity Value Calculation:</strong> ${metrics.totalMonthlyActions.toLocaleString(undefined, {maximumFractionDigits: 0})} monthly actions × ${metrics.minsPerAction} min ÷ 60 × $${config.professionalRate}/hr = $${metrics.valuePerMonth.toLocaleString(undefined, {maximumFractionDigits: 0})}/month
                 </p>
             </div>
@@ -1852,8 +2664,8 @@ function renderResults() {
 
             </div><!-- end TAB: Executive Summary -->
 
-            <!-- TAB: Team Performance -->
-            <div class="report-tab-content" id="tab-teams" style="display:none;">
+            <!-- TAB: Organizations (was Team Performance) -->
+            <div class="report-tab-content" id="tab-orgs" style="display:none;">
 
             ${section('Top 10 by Value Generated', `<div class="roi-table-container" style="box-shadow:none;border:none;padding:0;margin:0;">
                 <p style="text-align:center; margin-bottom:1rem; color: var(--text-secondary); font-size: 0.9rem;">Monthly value = weekly actions × ${config.minutesPerAction} min/action ÷ 60 × $${config.professionalRate}/hr × 4.33 weeks</p>
@@ -1978,14 +2790,24 @@ function renderResults() {
             </div>
             `)}<!-- end All Teams -->
 
-            </div><!-- end TAB: Team Performance -->
+            <!-- Interactive org breakdown (ported from standalone Organizations page) -->
+            <div class="insights-host" data-tab-host="orgs">
+                <p style="color:var(--text-secondary, #94A3B8); padding:2rem; text-align:center;">Loading organization breakdown&hellip;</p>
+            </div>
+
+            </div><!-- end TAB: Organizations -->
 
             <!-- TAB: ROI Analysis -->
             <div class="report-tab-content" id="tab-roi" style="display:none;">
 
             ${projections.breakEvenHtml}${projections.opportunityHtml}${projections.projHtml}
 
-            </div><!-- end TAB: ROI Analysis -->
+            <!-- Forecast and sensitivity (ported from standalone Forecast page) -->
+            <div class="insights-host" data-tab-host="forecast">
+                <p style="color:var(--text-secondary, #94A3B8); padding:2rem; text-align:center;">Loading forecast&hellip;</p>
+            </div>
+
+            </div><!-- end TAB: ROI and Forecast -->
 
             <!-- TAB: Reference -->
             <div class="report-tab-content" id="tab-reference" style="display:none;">
@@ -2027,10 +2849,25 @@ function renderResults() {
                     <tr><td><strong>Power User Rate</strong></td><td>The percentage of all licensed users classified as Power Users.</td></tr>
                     <tr><td><strong>Super Usage Report</strong></td><td>A Power BI report (<a href="https://aka.ms/decodingsuperusage" target="_blank" style="color:var(--copilot-cyan);">aka.ms/decodingsuperusage</a>) that provides a heatmap view of Copilot usage across your organization, broken out by team/division.</td></tr>
                     <tr><td><strong>Trend Badge (vs Prior 4wk)</strong></td><td>A percentage change indicator comparing the most recent 4 weeks of data against the preceding 4 weeks. Green ↑ means improvement; red ↓ means decline. Appears on Key Metrics when time-period data is available.</td></tr>
-                    <tr><td><strong>Usage Tier</strong></td><td>A percentile band (Top 10%, 75-90%, etc.) that groups teams by their average Copilot actions per user, helping identify champions and teams that need enablement.</td></tr>
+                    <tr><td><strong>Usage Tier</strong></td><td>The Usage Threshold cohort a person falls into, based on their 12-week rolling average of weekly Copilot actions and the 9-of-12-weeks habit rule: Power Users, Habitual Users, Novice Users, Low Users, Non-users.</td></tr>
                     <tr><td><strong>Unassigned License Cost</strong></td><td>The monthly cost of licenses purchased but not yet assigned to users. These represent ready-to-deploy seats — assigning them brings immediate value, or right-sizing at renewal frees up budget for other priorities.</td></tr>
                     <tr><td><strong>Weekly Actions per User</strong></td><td>The average number of Copilot actions each active user performs per week — things like accepting a suggestion, using Copilot chat, or generating a summary.</td></tr>
                     <tr><td><strong>Weekly Hours Saved</strong></td><td>The estimated total time saved per week across all users, calculated as total weekly actions × minutes per action ÷ 60.</td></tr>
+                    <tr><td><strong>Habitual Users</strong></td><td>Users averaging 8 or more weekly Copilot actions across a trailing 12-week window AND active in at least 9 of those 12 weeks. The official Microsoft Viva Insights cohort for sustained, mid-volume usage — the layer just below Power Users.</td></tr>
+                    <tr><td><strong>Novice Users</strong></td><td>Users averaging at least 1 weekly action across the trailing 12-week window but not yet meeting the Habitual or Power thresholds. Early in their adoption curve and the most coachable cohort.</td></tr>
+                    <tr><td><strong>Low Users</strong></td><td>Users with greater-than-zero but less-than-one weekly average across the trailing 12-week window. Tried Copilot but did not stick. Highest priority for waste/redeploy decisions.</td></tr>
+                    <tr><td><strong>Non Users</strong></td><td>Licensed users with zero recorded actions across the trailing 12-week window. Full license waste until reassigned or activated.</td></tr>
+                    <tr><td><strong>Usage Threshold</strong></td><td>The per-week cohort assignment formula. For each person and each week W: look at the 12 weeks ending at W, compute avg12 (mean weekly actions) and habit12 (count of weeks with ≥1 action). Assign Power if avg12≥20 AND habit12≥9; else Habitual if avg12≥8 AND habit12≥9; else Novice if avg12≥1; else Low if avg12>0; else Non.</td></tr>
+                    <tr><td><strong>Rolling 12-Week Average (avg12)</strong></td><td>The trailing-window mean of weekly Copilot actions used to assign cohorts. avg12(person, week W) = mean of actions over weeks [W − 11, W]. Smooths short-term spikes and matches the Power BI Super User Adoption template.</td></tr>
+                    <tr><td><strong>Habit Flag</strong></td><td>habit12(person, week W) = count of weeks in [W − 11, W] where the person had at least one action. The official threshold for Habitual or Power classification is ≥9 of 12.</td></tr>
+                    <tr><td><strong>Adjusted CAH (Copilot Assisted Hours)</strong></td><td>An alternate ROI model: instead of <code>actions × minutes</code>, value comes from Viva-measured Copilot assisted hours plus half of Intelligent Recap actions, dampened by a penalty factor between 0.25 and 1.0. Surfaces on the Forecast & Sensitivity page.</td></tr>
+                    <tr><td><strong>Penalty Factor</strong></td><td>The 0.25 – 1.0 dampener applied to Adjusted CAH valuation to discount for partial attribution. 1.0 = full credit, 0.5 = half-credit, 0.25 = quarter-credit (highly conservative).</td></tr>
+                    <tr><td><strong>Organization (Aggregated)</strong></td><td>The grouping rule that mirrors the Power BI Super User Adoption template: any group with fewer than 5 distinct PersonIDs or a blank/N/A/Unassigned label is rolled into a single "Other" bucket so per-org metrics stay statistically meaningful and privacy-safe.</td></tr>
+                    <tr><td><strong>Per-App Attribution</strong></td><td>The split of monthly value across the apps users actually performed actions in (Word, Excel, Teams, Outlook, etc.). Per app: actions × minutesPerAction / 60 × professionalRate. Visible on the Apps & Behavior page when per-app columns are present in your export.</td></tr>
+                    <tr><td><strong>Grouping Field</strong></td><td>The header column you choose at upload time to group people for org-level views. Defaults to <em>Organization</em>, but you can pick Function/Department/Region/Manager or any other low-cardinality string column. Detected automatically from your CSV.</td></tr>
+                    <tr><td><strong>Header Normalization</strong></td><td>The upload-time step that maps en-GB/es/customer-specific Viva exports to the canonical en-US header schema (e.g. <em>Organisation → Organization</em>, <em>Organización → Organization</em>, <em>Copilot365 → FunctionType</em>, <em>DesInfo → Organization</em>) so the calculator works regardless of locale or tenant aliases.</td></tr>
+                    <tr><td><strong>Cohort Migration Matrix</strong></td><td>The "where did Power Users from 4 weeks ago end up today?" view on the Adoption Insights page. Rows = prior cohort, columns = recent cohort. Up = improvement, Same = held position, Down = slipped. Recent-vs-prior windows are 4 weeks each.</td></tr>
+                    <tr><td><strong>Time to Habit</strong></td><td>TTH(person) = (firstHabitWeek − firstActionWeek) / 7. Measures how many weeks it took a user, from their first-ever Copilot action, to reach the Habitual or Power cohort. The smaller, the faster your enablement is paying off.</td></tr>
                 </tbody>
             </table>
             `)}<!-- end Glossary -->
@@ -2038,9 +2875,9 @@ function renderResults() {
             </div><!-- end TAB: Reference -->
 
             <div style="text-align: center; margin-top: 2rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-                <button class="btn-primary" onclick="exportToDocx()" style="background: linear-gradient(135deg, #4A9EF7, #A855F7);">Export to DOCX</button>
-                <button class="btn-primary" onclick="exportToPptx()" style="background: linear-gradient(135deg, #A855F7, #EC4899);">Export to PPTX</button>
-                <button class="btn-primary" onclick="exportExecutiveDeck()" style="background: linear-gradient(135deg, #10B981, #0078D4);">Executive Deck</button>
+                <button class="btn-primary" onclick="exportToDocx()">Export to DOCX</button>
+                <button class="btn-primary" onclick="exportToPptx()">Export to PPTX</button>
+                <button class="btn-primary" onclick="exportExecutiveDeck()">Executive Deck</button>
                 <button class="btn-primary" onclick="location.reload()">Analyze Another File</button>
             </div>
         </div>
@@ -2051,6 +2888,9 @@ function renderResults() {
     document.querySelector('.container').innerHTML = html;
     resultsDisplayed = true;
 
+    // Populate the 5 ported in-report analytics tabs from shared session data
+    populateInsightsHosts();
+
     // Initialize table sorting after rendering
     initTableSorting();
     
@@ -2059,6 +2899,33 @@ function renderResults() {
         switchTimePeriod('all');
     }
 }
+
+function populateInsightsHosts() {
+    if (!window.InsightsTabs || !window.InsightsShared) return;
+    try {
+        const _sharedData = window.InsightsShared.loadSharedData();
+        if (_sharedData) {
+            const _tabMap = {
+                orgs:     window.InsightsTabs.renderOrgs,
+                forecast: window.InsightsTabs.renderForecast
+            };
+            Object.entries(_tabMap).forEach(([_k, _fn]) => {
+                const _host = document.querySelector('.insights-host[data-tab-host="' + _k + '"]');
+                if (_host && _fn) {
+                    try { _fn(_host, _sharedData); }
+                    catch (e) { console.warn('[InsightsTabs] ' + _k + ' render failed', e); }
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('[InsightsTabs] population failed', e);
+    }
+}
+
+// Chart SVG bakes resolved colours, so a theme switch has to re-render them.
+document.addEventListener('cri:themechange', () => {
+    if (resultsDisplayed) populateInsightsHosts();
+});
 
 // Shared: prepare the container for capture (open sections, hide buttons, fix gradients)
 function prepareForCapture(container) {
@@ -2086,8 +2953,8 @@ function prepareForCapture(container) {
         el.style.background = 'none';
         el.style.webkitBackgroundClip = 'unset';
         el.style.backgroundClip = 'unset';
-        el.style.webkitTextFillColor = '#00D4FF';
-        el.style.color = '#00D4FF';
+        el.style.webkitTextFillColor = 'var(--accent)';
+        el.style.color = 'var(--accent)';
     });
 
     return { closedDetails, hideEls, origStyle, gradientEls, hiddenTabs, tabBar };
@@ -2103,11 +2970,23 @@ function restoreAfterCapture(container, state) {
     if (state.tabBar) state.tabBar.style.display = state.tabBar.dataset.prevDisplay || '';
 }
 
+// Exported PNG/PDF/PPTX canvases must match the theme the user is looking at,
+// otherwise a light-theme report is composited onto a dark plate.
+function exportCanvasColor() {
+    try {
+        const root = getComputedStyle(document.documentElement).getPropertyValue('--ink-900').trim();
+        if (root) return root;
+        const body = getComputedStyle(document.body).backgroundColor;
+        if (body && body !== 'rgba(0, 0, 0, 0)' && body !== 'transparent') return body;
+    } catch (e) {}
+    return '#0B1120';
+}
+
 // Capture all visible sections as PNG image data arrays
 async function captureSections(container, progressCb) {
     const isVisible = (el) => el.offsetHeight > 0 && getComputedStyle(el).display !== 'none';
     const sections = Array.from(container.children).filter(isVisible);
-    const h2cOpts = { scale: 2, useCORS: true, backgroundColor: '#0B1120', logging: false, windowWidth: 1120 };
+    const h2cOpts = { scale: 2, useCORS: true, backgroundColor: exportCanvasColor(), logging: false, windowWidth: 1120 };
     const images = [];
     for (let i = 0; i < sections.length; i++) {
         if (progressCb) progressCb(i, sections.length);
@@ -2139,27 +3018,40 @@ function generateStoryNarrative() {
     const weeks = config.analysisWeeks;
     const dateRange = uploadedData.dateRange || `${weeks} weeks`;
 
-    // Tier breakdown
+    // Tier breakdown — prefer real per-user cohorts when Viva data is loaded
     const byActions = [...sortedTeams].sort((a, b) => b.actionsPerUser - a.actionsPerUser);
     const totalTeams = byActions.length;
-    const tierDefs = [
-        { name: 'Top 10%', start: 0, end: Math.max(1, Math.round(totalTeams * 0.10)) },
-        { name: '75th–90th percentile', start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25) },
-        { name: '50th–75th percentile', start: Math.round(totalTeams * 0.25), end: Math.round(totalTeams * 0.50) },
-        { name: '25th–50th percentile', start: Math.round(totalTeams * 0.50), end: Math.round(totalTeams * 0.75) },
-        { name: 'Bottom 25%', start: Math.round(totalTeams * 0.75), end: totalTeams },
-    ];
-    const tierSummaries = tierDefs.map(tier => {
-        const slice = byActions.slice(tier.start, tier.end);
-        if (slice.length === 0) return null;
-        const tierUsers = slice.reduce((s, t) => s + t.activeUsers, 0);
-        const tierWeekly = slice.reduce((s, t) => s + t.weeklyActions, 0);
-        const tierAvg = tierUsers > 0 ? (tierWeekly / tierUsers) * 4.33 : 0;
-        const tierVal = slice.reduce((s, t) => s + t.monthlyValue, 0);
-        const tierInvest = tierUsers * config.licenseCost;
-        const tierRoi = tierInvest > 0 ? (tierVal / tierInvest).toFixed(1) : '0.0';
-        return { name: tier.name, users: tierUsers, avgMonthly: tierAvg.toFixed(0), value: usd(tierVal), roi: tierRoi + 'x' };
-    }).filter(Boolean);
+    let tierSummaries;
+    if (uploadedData.isVivaInsights && uploadedData.personCohorts && uploadedData.personCohorts.rows) {
+        tierSummaries = uploadedData.personCohorts.rows
+            .filter(r => r.count > 0)
+            .map(r => ({
+                name: r.name,
+                users: r.count,
+                avgMonthly: r.actionsPerMonth.toFixed(0),
+                value: usd(r.monthlyValue),
+                roi: r.roi.toFixed(1) + 'x'
+            }));
+    } else {
+        const tierDefs = [
+            { name: 'Top 10%', start: 0, end: Math.max(1, Math.round(totalTeams * 0.10)) },
+            { name: '75th–90th percentile', start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25) },
+            { name: '50th–75th percentile', start: Math.round(totalTeams * 0.25), end: Math.round(totalTeams * 0.50) },
+            { name: '25th–50th percentile', start: Math.round(totalTeams * 0.50), end: Math.round(totalTeams * 0.75) },
+            { name: 'Bottom 25%', start: Math.round(totalTeams * 0.75), end: totalTeams },
+        ];
+        tierSummaries = tierDefs.map(tier => {
+            const slice = byActions.slice(tier.start, tier.end);
+            if (slice.length === 0) return null;
+            const tierUsers = slice.reduce((s, t) => s + t.activeUsers, 0);
+            const tierWeekly = slice.reduce((s, t) => s + t.weeklyActions, 0);
+            const tierAvg = tierUsers > 0 ? (tierWeekly / tierUsers) * 4.33 : 0;
+            const tierVal = slice.reduce((s, t) => s + t.monthlyValue, 0);
+            const tierInvest = tierUsers * config.licenseCost;
+            const tierRoi = tierInvest > 0 ? (tierVal / tierInvest).toFixed(1) : '0.0';
+            return { name: tier.name, users: tierUsers, avgMonthly: tierAvg.toFixed(0), value: usd(tierVal), roi: tierRoi + 'x' };
+        }).filter(Boolean);
+    }
 
     // Top 5 teams
     const top5 = sortedTeams.slice(0, 5).map((t, i) => `${i + 1}. ${t.team} — ${fmt(t.activeUsers)} active users, ${fmtD(t.actionsPerUser, 1)} actions/user/week, ${usd(t.monthlyValue)}/month`);
@@ -2895,27 +3787,50 @@ async function exportExecutiveDeck() {
             });
         };
 
-        // Compute tier data
+        // Compute tier data — prefer real per-user cohorts when Viva data is loaded
         const byActions = [...sortedTeams].sort((a, b) => b.actionsPerUser - a.actionsPerUser);
         const totalTeams = byActions.length;
-        const tierDefs = [
-            { name: 'Top 10%', start: 0, end: Math.max(1, Math.round(totalTeams * 0.10)), color: GREEN },
-            { name: '75\u201390%', start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25), color: CYAN },
-            { name: '50\u201375%', start: Math.round(totalTeams * 0.25), end: Math.round(totalTeams * 0.50), color: CYAN },
-            { name: '25\u201350%', start: Math.round(totalTeams * 0.50), end: Math.round(totalTeams * 0.75), color: GOLD },
-            { name: 'Bottom 25%', start: Math.round(totalTeams * 0.75), end: totalTeams, color: RED },
-        ];
-        const tierData = tierDefs.map(tier => {
-            const slice = byActions.slice(tier.start, tier.end);
-            const users = slice.reduce((s, t) => s + t.activeUsers, 0);
-            const weeklyAct = slice.reduce((s, t) => s + t.weeklyActions, 0);
-            const monthly = weeklyAct * 4.33;
-            const actPerUser = users > 0 ? monthly / users : 0;
-            const value = slice.reduce((s, t) => s + t.monthlyValue, 0);
-            const invest = users * config.licenseCost;
-            const roi = invest > 0 ? value / invest : 0;
-            return { ...tier, users, monthly: Math.round(monthly), actPerUser: Math.round(actPerUser), value, invest, roi };
-        }).filter(t => t.users > 0);
+        let tierData;
+        if (uploadedData.isVivaInsights && uploadedData.personCohorts && uploadedData.personCohorts.rows) {
+            const cohortColor = {
+                'Power Users':    GREEN,
+                'Habitual Users': CYAN,
+                'Novice Users':   CYAN,
+                'Low Users':      GOLD,
+                'Non Users':      RED
+            };
+            tierData = uploadedData.personCohorts.rows
+                .filter(r => r.count > 0)
+                .map(r => ({
+                    name: r.name,
+                    color: cohortColor[r.name] || CYAN,
+                    users: r.count,
+                    monthly: Math.round(r.actionsPerMonth * r.count),
+                    actPerUser: Math.round(r.actionsPerMonth),
+                    value: r.monthlyValue,
+                    invest: r.investment,
+                    roi: r.roi
+                }));
+        } else {
+            const tierDefs = [
+                { name: 'Top 10%', start: 0, end: Math.max(1, Math.round(totalTeams * 0.10)), color: GREEN },
+                { name: '75\u201390%', start: Math.max(1, Math.round(totalTeams * 0.10)), end: Math.round(totalTeams * 0.25), color: CYAN },
+                { name: '50\u201375%', start: Math.round(totalTeams * 0.25), end: Math.round(totalTeams * 0.50), color: CYAN },
+                { name: '25\u201350%', start: Math.round(totalTeams * 0.50), end: Math.round(totalTeams * 0.75), color: GOLD },
+                { name: 'Bottom 25%', start: Math.round(totalTeams * 0.75), end: totalTeams, color: RED },
+            ];
+            tierData = tierDefs.map(tier => {
+                const slice = byActions.slice(tier.start, tier.end);
+                const users = slice.reduce((s, t) => s + t.activeUsers, 0);
+                const weeklyAct = slice.reduce((s, t) => s + t.weeklyActions, 0);
+                const monthly = weeklyAct * 4.33;
+                const actPerUser = users > 0 ? monthly / users : 0;
+                const value = slice.reduce((s, t) => s + t.monthlyValue, 0);
+                const invest = users * config.licenseCost;
+                const roi = invest > 0 ? value / invest : 0;
+                return { ...tier, users, monthly: Math.round(monthly), actPerUser: Math.round(actPerUser), value, invest, roi };
+            }).filter(t => t.users > 0);
+        }
 
         const monthlyValuePerUser = metrics.totalActiveUsers > 0 ? metrics.valuePerMonth / metrics.totalActiveUsers : 0;
         const breakEvenActions = (config.licenseCost / ((config.minutesPerAction / 60) * config.professionalRate));
@@ -2950,7 +3865,7 @@ async function exportExecutiveDeck() {
             x: 0.70, y: 4.20, w: 11.0, h: 0.80, fontSize: 20, fontFace: 'Calibri', color: WHITE
         });
         // Data context
-        s1.addText(`Based on ${rows.length} ${groupLabel}  \u2022  ${weeks} weeks of data  \u2022  ${dateRange}`, {
+        s1.addText(`Based on ${formatGroupCount(rows.length, groupLabel)}  \u2022  ${weeks} weeks of data  \u2022  ${dateRange}`, {
             x: 0.70, y: 5.20, w: 11.0, h: 0.40, fontSize: 13, fontFace: 'Calibri', color: MUTED
         });
         // Footer bar
@@ -3756,6 +4671,31 @@ function showError(message) {
     if (em) em.textContent = message;
 }
 
+// Rejection UI for a CSV that is not a Viva Insights person query. The markup is entirely
+// author-written — nothing from the uploaded file is interpolated — so there is no injection
+// surface. Unlike showError(), the instructions section stays visible so the Step 1 link works.
+function showUnsupportedFormatError(looksLikeHeatmap) {
+    const ls = document.getElementById('loadingState');
+    if (ls) ls.style.display = 'none';
+    const es = document.getElementById('errorState');
+    const em = document.getElementById('errorMessage');
+    if (!es || !em) { showError(UNSUPPORTED_FORMAT_TEXT); return; }
+
+    const heatmapNote = looksLikeHeatmap
+        ? '<p style="margin:0 0 0.75rem;"><strong>This looks like a Super Usage Report heatmap export, which is no longer supported.</strong> Re-export from Viva Insights using a Person query.</p>'
+        : '';
+
+    em.innerHTML =
+        heatmapNote +
+        '<p style="margin:0 0 0.75rem;">This file doesn&rsquo;t look like a <strong>Viva Insights person-query export</strong>, which is the only format the calculator accepts.</p>' +
+        '<p style="margin:0 0 0.5rem;">Your CSV must contain these columns:</p>' +
+        '<ul style="margin:0 0 0.75rem 1.25rem;"><li><code>PersonId</code></li><li><code>MetricDate</code></li><li><code>Total Copilot actions taken</code></li></ul>' +
+        '<p style="margin:0;">Follow <a href="#step-export-data">Step 1 &mdash; Export Your Viva Insights Data</a> for the exact query settings.</p>';
+
+    es.style.display = 'block';
+    try { es.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+}
+
 // Toggle Intelligent Recap display for Data Analysis
 function toggleRecapDisplayData() {
     const toggle = document.getElementById('recapToggleData');
@@ -3795,7 +4735,7 @@ async function downloadLocalPackage(event) {
     const originalHTML = btn?.innerHTML;
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span class="action-icon">⏳</span><span class="action-text">Creating ZIP...</span>';
+        btn.innerHTML = '<span class="action-text">Creating ZIP…</span>';
     }
 
     try {
@@ -3809,12 +4749,42 @@ async function downloadLocalPackage(event) {
             'styles.css',
             'script.js',
             'sales-script.js',
+            'insights-shared.js',
+            'insights-tabs.js',
+            'header-mapping.js',
             'sample-data.csv',
             'lib/html2canvas.min.js',
             'lib/jspdf.umd.min.js',
             'lib/pptxgen.bundle.js',
             'lib/docx.umd.js',
-            'lib/jszip.min.js'
+            'lib/jszip.min.js',
+            'lib/html2pdf.bundle.min.js',
+            // Vendored typography — without these the offline copy falls back to system fonts.
+            'assets/fonts/fonts.css',
+            'assets/fonts/IBMPlexMono--F63fjptAgt5VM-kVkqdyU8n1i8q1w.woff2',
+            'assets/fonts/IBMPlexMono--F63fjptAgt5VM-kVkqdyU8n1iAq129k.woff2',
+            'assets/fonts/IBMPlexMono--F63fjptAgt5VM-kVkqdyU8n1iEq129k.woff2',
+            'assets/fonts/IBMPlexMono--F63fjptAgt5VM-kVkqdyU8n1iIq129k.woff2',
+            'assets/fonts/IBMPlexMono--F63fjptAgt5VM-kVkqdyU8n1isq129k.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3twJwl1FgtIU.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3twJwl5FgtIU.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3twJwl9FgtIU.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3twJwlBFgg.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3twJwlRFgtIU.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3vAOwl1FgtIU.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3vAOwl5FgtIU.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3vAOwl9FgtIU.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3vAOwlBFgg.woff2',
+            'assets/fonts/IBMPlexMono--F6qfjptAgt5VM-kVkqdyU8n3vAOwlRFgtIU.woff2',
+            'assets/fonts/IBMPlexSans-zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxaKYbABA.woff2',
+            'assets/fonts/IBMPlexSans-zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxdKYbABA.woff2',
+            'assets/fonts/IBMPlexSans-zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxeKYY.woff2',
+            'assets/fonts/IBMPlexSans-zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxQKYbABA.woff2',
+            'assets/fonts/IBMPlexSans-zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxRKYbABA.woff2',
+            'assets/fonts/IBMPlexSans-zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxTKYbABA.woff2',
+            'assets/fonts/Newsreader-cY9VfjOCX1hbuyalUrK49dLac06G1ZGsZBtoBAbCJYQraA.woff2',
+            'assets/fonts/Newsreader-cY9VfjOCX1hbuyalUrK49dLac06G1ZGsZBtoBAbDJYQraA.woff2',
+            'assets/fonts/Newsreader-cY9VfjOCX1hbuyalUrK49dLac06G1ZGsZBtoBAbNJYQ.woff2'
         ];
 
         // Fetch and add all files to ZIP
@@ -3885,7 +4855,7 @@ Visit: https://jordankingisalive.github.io/CopilotROICalculator/
 
         // Reset button
         if (btn) {
-            btn.innerHTML = '<span class="action-icon">✅</span><span class="action-text">Downloaded!</span>';
+            btn.innerHTML = '<span class="action-text">Downloaded</span>';
             setTimeout(() => {
                 btn.disabled = false;
                 btn.innerHTML = originalHTML;

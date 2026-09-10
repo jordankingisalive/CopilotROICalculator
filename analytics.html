@@ -4,15 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics Dashboard - M365 Copilot ROI Calculator</title>
-    <link rel="stylesheet" href="styles.css">
+    <script>(function(){try{var t=localStorage.getItem('cri_theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="styles.css?v=57">
     
     <!-- Microsoft Clarity Analytics -->
     <script type="text/javascript">
+        // Analytics run only on the hosted site; local and offline copies stay request-free.
+        if (location.protocol !== 'file:' && /(^|\.)github\.io$/i.test(location.hostname)) {
         (function(c,l,a,r,i,t,y){
             c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
             t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
             y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
         })(window,document,"clarity","script","wt5uwqabv0");
+        }
     </script>
     <style>
         .analytics-container {
@@ -155,14 +159,14 @@
         
         .setup-warning {
             background: linear-gradient(135deg, rgba(251, 146, 60, 0.1), rgba(249, 115, 22, 0.05));
-            border: 2px solid #fb923c;
+            border: 2px solid var(--warn);
             border-radius: 12px;
             padding: 1.5rem;
             margin-bottom: 2rem;
         }
         
         .setup-warning h3 {
-            color: #fb923c;
+            color: var(--warn);
             margin-bottom: 0.75rem;
             display: flex;
             align-items: center;
@@ -220,18 +224,19 @@
 </head>
 <body>
     <div class="analytics-container">
+        <nav class="nav-buttons" id="nav"></nav>
         <a href="index.html" class="back-link">
             ← Back to Calculator
         </a>
         
         <div class="analytics-header">
-            <h1>📊 Analytics Dashboard</h1>
+            <h1>Analytics Dashboard</h1>
             <p>Track visitor engagement and tool usage</p>
         </div>
 
         <!-- Setup Warning (if not configured) -->
         <div class="setup-warning" id="setupWarning">
-            <h3>⚠️ Analytics Setup Required</h3>
+            <h3>Analytics Setup Required</h3>
             <p>
                 To view analytics data, you need to replace <code>YOUR_CLARITY_PROJECT_ID</code> with your actual Microsoft Clarity Project ID.
             </p>
@@ -250,25 +255,21 @@
         <!-- Quick Stats -->
         <div class="metrics-grid">
             <div class="metric-box">
-                <div class="metric-icon">👥</div>
                 <div class="metric-value" id="totalVisitors">-</div>
                 <div class="metric-label">Total Visitors</div>
             </div>
             
             <div class="metric-box">
-                <div class="metric-icon">🔄</div>
                 <div class="metric-value" id="totalSessions">-</div>
                 <div class="metric-label">Total Sessions</div>
             </div>
             
             <div class="metric-box">
-                <div class="metric-icon">📥</div>
                 <div class="metric-value" id="totalDownloads">-</div>
                 <div class="metric-label">Total Downloads</div>
             </div>
             
             <div class="metric-box">
-                <div class="metric-icon">🎯</div>
                 <div class="metric-value" id="demoViews">-</div>
                 <div class="metric-label">Demo Reports Viewed</div>
             </div>
@@ -277,22 +278,19 @@
         <!-- Microsoft Clarity Dashboard -->
         <div class="clarity-section">
             <h2>
-                <span>📈</span>
                 Microsoft Clarity Dashboard
             </h2>
             <p style="color: var(--gray); margin-bottom: 1rem;">
                 View detailed analytics including heatmaps, session recordings, and user behavior insights directly in Microsoft Clarity.
             </p>
             <a href="https://clarity.microsoft.com" target="_blank" class="clarity-link">
-                <span>🔗</span>
                 Open Clarity Dashboard
             </a>
             
             <div class="events-list">
-                <h3>📋 Tracked Events</h3>
+                <h3>Tracked Events</h3>
                 
                 <div class="event-item">
-                    <span class="event-icon">📊</span>
                     <div>
                         <div class="event-name">download_executive_deck</div>
                         <div class="event-desc">User downloaded the Executive Deck PowerPoint</div>
@@ -300,7 +298,6 @@
                 </div>
                 
                 <div class="event-item">
-                    <span class="event-icon">📈</span>
                     <div>
                         <div class="event-name">download_powerpoint_analysis</div>
                         <div class="event-desc">User downloaded the Full Analysis PowerPoint</div>
@@ -308,7 +305,6 @@
                 </div>
                 
                 <div class="event-item">
-                    <span class="event-icon">📦</span>
                     <div>
                         <div class="event-name">download_local_package</div>
                         <div class="event-desc">User downloaded the offline ZIP package</div>
@@ -316,7 +312,6 @@
                 </div>
                 
                 <div class="event-item">
-                    <span class="event-icon">🎯</span>
                     <div>
                         <div class="event-name">demo_report_loaded</div>
                         <div class="event-desc">User viewed the demonstration report</div>
@@ -328,48 +323,47 @@
         <!-- Clarity Features -->
         <div class="clarity-section">
             <h2>
-                <span>🔍</span>
                 Available Insights
             </h2>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
                 <div style="background: var(--surface-raised, #253449); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
-                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">🔥 Heatmaps</h3>
+                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">Heatmaps</h3>
                     <p style="color: var(--gray); line-height: 1.6;">
                         See where users click, scroll, and spend time on your pages. Identify popular features and optimization opportunities.
                     </p>
                 </div>
                 
                 <div style="background: var(--surface-raised, #253449); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
-                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">🎥 Session Recordings</h3>
+                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">Session Recordings</h3>
                     <p style="color: var(--gray); line-height: 1.6;">
                         Watch real user sessions to understand how people interact with the calculator and where they encounter issues.
                     </p>
                 </div>
                 
                 <div style="background: var(--surface-raised, #253449); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
-                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">📊 Dashboards</h3>
+                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">Dashboards</h3>
                     <p style="color: var(--gray); line-height: 1.6;">
                         Track key metrics over time including sessions, page views, engagement rates, and conversion funnels.
                     </p>
                 </div>
                 
                 <div style="background: var(--surface-raised, #253449); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
-                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">⚡ Performance</h3>
+                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">Performance</h3>
                     <p style="color: var(--gray); line-height: 1.6;">
                         Monitor page load times, JavaScript errors, and performance bottlenecks affecting user experience.
                     </p>
                 </div>
                 
                 <div style="background: var(--surface-raised, #253449); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
-                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">🎯 Custom Events</h3>
+                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">Custom Events</h3>
                     <p style="color: var(--gray); line-height: 1.6;">
                         Track specific user actions like downloads, demo views, and feature usage to measure engagement.
                     </p>
                 </div>
                 
                 <div style="background: var(--surface-raised, #253449); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
-                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">🌍 Geography</h3>
+                    <h3 style="color: var(--copilot-cyan); margin-bottom: 0.75rem; font-size: 1.1rem;">Geography</h3>
                     <p style="color: var(--gray); line-height: 1.6;">
                         See where your users are located and identify regions with the highest engagement and adoption.
                     </p>
@@ -380,7 +374,7 @@
         <!-- Contact -->
         <div style="text-align: center; margin-top: 3rem; padding: 2rem; background: var(--surface); border-radius: 12px;">
             <p style="color: var(--gray); margin-bottom: 1rem;">
-                💡 <strong>Need help setting up analytics?</strong>
+                <strong>Need help setting up analytics?</strong>
             </p>
             <p style="color: var(--gray);">
                 Contact: <a href="mailto:jordanking@microsoft.com" style="color: var(--copilot-cyan); text-decoration: none;">jordanking@microsoft.com</a>
@@ -414,6 +408,15 @@
                 document.getElementById('demoViews').textContent = 'View in Clarity';
             }
         }, 500);
+    </script>
+    <script src="insights-shared.js?v=57"></script>
+    <script>
+        (function(){
+            const nav = document.getElementById('nav');
+            if (nav && window.InsightsShared) {
+                nav.outerHTML = window.InsightsShared.renderNav('analytics.html');
+            }
+        })();
     </script>
 </body>
 </html>

@@ -63,7 +63,7 @@ CopilotROICalculator/
 ├── sales-script.js              (33 KB, 536 lines)   - ROI calculator logic
 ├── styles.css                   (18 KB, 769 lines)   - Global styles
 ├── sw.js                        (1 KB, 35 lines)     - Service worker (PWA)
-├── sample-data.csv              (1 KB, 11 lines)     - Example CSV data
+├── sample-data.csv              (6 KB, 73 lines)     - Example Viva Insights person-query CSV
 ├── RUN_LOCAL_SERVER.bat         (1 KB, 42 lines)    - Windows launcher
 ├── RUN_LOCAL_SERVER.sh          (2 KB, 48 lines)    - Unix/Mac launcher
 ├── README.md                    (5 KB, 120 lines)    - GitHub readme
@@ -114,7 +114,7 @@ Total Size: ~2.2 MB (without .git)
 **Visualizations**
 - Executive summary cards (8 key metrics)
 - Time period comparison (current vs. prior 4 weeks)
-- Usage tier distribution (Top 10%, 75-90%, 50-75%, 25-50%, Bottom 25%)
+- Usage tier distribution (Power, Habitual, Novice, Low, Non-users)
 - Weekly trend charts (actions per user)
 - Usage heatmap (teams × weeks)
 - Top performers table (sortable, searchable, paginated)
@@ -300,9 +300,9 @@ Total Size: ~2.2 MB (without .git)
 ```
 CSV Upload
     ↓
-parseCSV() → Parse text to rows
+parseCSV() → Detect the Viva Insights person query (reject anything else)
     ↓
-flattenData() → Convert grouped data to weekly rows
+parseVivaInsights() → Per-person weekly index + canonical Usage Threshold cohorts
     ↓
 calculateMetrics() → Compute all ROI metrics
     ↓
@@ -342,7 +342,7 @@ User Actions:
 | `parseCSV(csvText)` | 270 | Parse CSV text to array of objects |
 | `parseCSVLine(line)` | 301 | Parse single CSV line (handles quoted fields) |
 | `parseDate(dateString)` | 328 | Parse various date formats to Date object |
-| `flattenData(rows)` | 351 | Convert grouped/weekly data to individual rows |
+| `flattenData(rows)` | 351 | Legacy heatmap flattener — dormant, no longer reachable from upload |
 | `parseNumber(value)` | 638 | Parse number with commas/decimals |
 | `calculateMetrics(data)` | 649 | Calculate all ROI metrics from data |
 
@@ -467,7 +467,7 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
 
 ## Dependencies & Libraries
 
-### External Libraries (CDN or Bundled)
+### External Libraries (Bundled Locally — Zero CDN)
 
 #### 1. PptxGenJS (lib/pptxgen.bundle.js - 466 KB)
 - **Version:** ~3.12.0
@@ -681,15 +681,18 @@ const config = {
 
 ### CSV Schema Requirements
 
+The only supported upload is a **Viva Insights person query** export (one row per person
+per week). Any other CSV is rejected with on-screen guidance.
+
 **Required Columns:**
-- `Date` or `Week` - Date/week identifier
-- Column with "Active" in name - Active users count
-- Column with "Action" in name - Total actions count
+- `PersonId` - person identifier
+- `MetricDate` - weekly metric date
+- `Total Copilot actions taken` - actions in that week
 
 **Optional Columns:**
-- `Organization` / `Team` / `Department` - Group identifier
-- `EnabledUsers` / `Licenses` / `Purchased` - Licensed user count
-- Weekly breakdown columns (detected by presence of dates)
+- `Organization` / `FunctionType` / `Region` - grouping attributes
+- `Total Copilot active days`, `Total Copilot enabled days`, `Copilot assisted hours`
+- `Intelligent recap actions taken`, per-app action columns (Word, Excel, Teams, Outlook, PowerPoint, OneNote)
 
 **Supported Date Formats:**
 - ISO: `2026-01-15`, `2026-1-15`
@@ -697,13 +700,16 @@ const config = {
 - European: `15/01/2026`, `15.01.2026`
 - Text: `Jan 15, 2026`, `January 15, 2026`
 
+British and Spanish column headers are normalized to en-US automatically
+(`header-mapping.js`).
+
 **Sample CSV:**
 ```csv
-Date,Organization,Active Copilot Users,Enabled Copilot Users,Copilot Actions
-2026-05-01,Engineering,145,200,12500
-2026-05-01,Sales,89,150,8900
-2026-05-08,Engineering,152,200,13200
-2026-05-08,Sales,95,150,9500
+PersonId,MetricDate,Total Copilot actions taken,Total Copilot active days,Total Copilot enabled days,Copilot assisted hours,Organization
+P1,2026-05-01 00:00:00,25,5,5,3.5,Engineering
+P1,2026-05-08 00:00:00,22,5,5,3.1,Engineering
+P2,2026-05-01 00:00:00,4,2,5,0.6,Sales
+P2,2026-05-08 00:00:00,6,3,5,0.9,Sales
 ```
 
 ---
@@ -716,7 +722,7 @@ Date,Organization,Active Copilot Users,Enabled Copilot Users,Copilot Actions
 - **Upload handler:** `handleFile()` at line 137
 - **CSV parser:** `parseCSV()` at line 270
 - **Date parser:** `parseDate()` at line 328
-- **Data flattener:** `flattenData()` at line 351
+- **Data flattener:** `flattenData()` at line 351 (dormant — legacy heatmap path)
 
 #### Metrics Calculation
 - **Main function:** `calculateMetrics()` at line 649

@@ -1,0 +1,16 @@
+{
+  "_note": "Hand-computed expected outcome for golden-viva.csv. All 12 weeks are present per person, so the latest-week 12-week rolling window covers every week; avg12 = mean of the 12 weekly Total Copilot actions taken. habit = (>=9 of 12 weeks have >=1 action). Tier via product classify(): avg12>=20 && habit -> Power; avg12>=8 && habit -> Habitual; avg12>=1 -> Novice; avg12>0 -> Low; else Non.",
+  "persons": {
+    "P1": { "rl12w": 25, "habit": true, "tier": "Power Users" },
+    "P2": { "rl12w": 12, "habit": true, "tier": "Habitual Users" },
+    "P3": { "rl12w": 4, "habit": true, "tier": "Novice Users" },
+    "P4": { "rl12w": 0.5, "habit": false, "tier": "Low Users" },
+    "P5": { "rl12w": 0, "habit": false, "tier": "Non Users" },
+    "P6": { "rl12w": 25, "habit": true, "tier": "Power Users" }
+  },
+  "orgTierCounts": {
+    "Contoso Ltd": { "Power Users": 1, "Habitual Users": 1, "Novice Users": 1, "Low Users": 1, "Non Users": 1 },
+    "Fabrikam Inc": { "Power Users": 1, "Habitual Users": 0, "Novice Users": 0, "Low Users": 0, "Non Users": 0 }
+  },
+  "overallTierCounts": { "Power Users": 2, "Habitual Users": 1, "Novice Users": 1, "Low Users": 1, "Non Users": 1 }
+}
